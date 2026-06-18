@@ -24,7 +24,9 @@ export class ExternalTranscriptProvider implements TranscriptProvider {
     if (response.status === 404) return { status: "unavailable" };
     if (!response.ok) return { status: "failed" };
     const data = await response.json() as TranscriptResult;
-    return data.transcript ? { status: "available", transcript: data.transcript } : { status: data.status ?? "unavailable" };
+    return data.transcript
+      ? { status: "available", transcript: data.transcript }
+      : { status: data.status ?? "unavailable", ...(data.reason ? { reason: data.reason } : {}) };
   }
 }
 

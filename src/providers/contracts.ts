@@ -3,7 +3,7 @@ import type { SummaryLanguage } from "@/domain/summary-languages";
 
 export interface YouTubePlaylistMetadata { id: string; title: string; description: string; videos: Video[]; nextPageToken?: string; }
 export interface YouTubeMetadataProvider { getPlaylist(playlistId: string): Promise<YouTubePlaylistMetadata>; }
-export interface TranscriptResult { status: "available" | "unavailable" | "processing" | "failed"; transcript?: string; }
+export interface TranscriptResult { status: "available" | "unavailable" | "processing" | "failed"; transcript?: string; reason?: string; }
 export interface TranscriptProvider { getTranscript(videoId: string): Promise<TranscriptResult>; }
 export interface AIProvider {
   analyzePlaylist(input: { mode: AgentMode; videos: Video[]; depth: SummaryDepth }): Promise<PlaylistAnalysis>;

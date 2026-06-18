@@ -4,7 +4,9 @@ import { decode } from "npm:html-entities@2.6.0";
 import {
   fetchTranscript,
   YoutubeTranscriptDisabledError,
+  YoutubeTranscriptNotAvailableError,
   YoutubeTranscriptNotAvailableLanguageError,
+  YoutubeTranscriptTooManyRequestError,
   YoutubeTranscriptVideoUnavailableError,
 } from "npm:youtube-transcript-plus@2.0.0";
 
@@ -54,11 +56,17 @@ const handler = {
         error instanceof YoutubeTranscriptVideoUnavailableError
       ) return json({ status: "unavailable" });
 
+      const reason = error instanceof YoutubeTranscriptTooManyRequestError
+        ? "youtube_rate_limited"
+        : error instanceof YoutubeTranscriptNotAvailableError
+          ? "youtube_rejected_request"
+          : "provider_error";
       console.warn("youtube_transcript_failed", {
         videoId: input.videoId,
         error: error instanceof Error ? error.name : "unknown",
+        reason,
       });
-      return json({ status: "failed" });
+      return json({ status: "failed", reason });
     } finally {
       clearTimeout(timeout);
     }

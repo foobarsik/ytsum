@@ -37,6 +37,19 @@ describe("Supabase transcript provider", () => {
       body: JSON.stringify({ videoId: "dQw4w9WgXcQ", language: "ru" }),
     }));
   });
+
+  it("preserves a safe provider failure reason", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      status: "failed",
+      reason: "youtube_rejected_request",
+    }), { status: 200 })));
+
+    await expect(new ExternalTranscriptProvider("https://example.test/transcript", "shared-secret")
+      .getTranscript("WxZHUe8mvhU")).resolves.toEqual({
+        status: "failed",
+        reason: "youtube_rejected_request",
+      });
+  });
 });
 
 describe("managed transcript provider", () => {
