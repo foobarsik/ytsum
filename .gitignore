@@ -1,0 +1,9 @@
+node_modules
+.next
+.env*.local
+.DS_Store
+.idea/
+coverage
+playwright-report
+test-results
+*.tsbuildinfo

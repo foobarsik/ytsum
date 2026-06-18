@@ -1,0 +1,12 @@
+import type { AgentMode, PlaylistAnalysis, SummaryDepth, Video } from "@/domain/types";
+import type { SummaryLanguage } from "@/domain/summary-languages";
+
+export interface YouTubePlaylistMetadata { id: string; title: string; description: string; videos: Video[]; }
+export interface YouTubeMetadataProvider { getPlaylist(playlistId: string): Promise<YouTubePlaylistMetadata>; }
+export interface TranscriptResult { status: "available" | "unavailable" | "processing" | "failed"; transcript?: string; }
+export interface TranscriptProvider { getTranscript(videoId: string): Promise<TranscriptResult>; }
+export interface AIProvider {
+  analyzePlaylist(input: { mode: AgentMode; videos: Video[]; depth: SummaryDepth }): Promise<PlaylistAnalysis>;
+  summarizeVideo(input: { video: Video; depth: SummaryDepth; language: SummaryLanguage }): Promise<Pick<Video, "summary" | "keyPoints" | "actionItems">>;
+  answerQuestion(input: { question: string; videos: Video[] }): Promise<{ answer: string; sourceVideoIds: string[] }>;
+}
