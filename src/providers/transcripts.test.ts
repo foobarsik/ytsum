@@ -19,6 +19,22 @@ describe("transcript provider selection", () => {
       TRANSCRIPT_FUNCTION_SECRET: "secret",
     })).toBeInstanceOf(ExternalTranscriptProvider);
   });
+
+  it("prefers an HTTP proxy over the Supabase relay", () => {
+    const provider = transcriptProviderFromEnv({
+      TRANSCRIPT_PROXY_URL: "http://user:password@127.0.0.1:8080",
+      TRANSCRIPT_SUPABASE_URL: "https://example.supabase.co/functions/v1/youtube-transcript",
+      TRANSCRIPT_FUNCTION_SECRET: "secret",
+    });
+    expect(provider).toBeInstanceOf(YouTubeTranscriptProvider);
+    expect((provider as YouTubeTranscriptProvider).transport).toBe("proxy");
+  });
+
+  it("ignores unsupported proxy protocols", () => {
+    const provider = transcriptProviderFromEnv({ TRANSCRIPT_PROXY_URL: "socks5://127.0.0.1:1080" });
+    expect(provider).toBeInstanceOf(YouTubeTranscriptProvider);
+    expect((provider as YouTubeTranscriptProvider).transport).toBe("direct");
+  });
 });
 
 describe("Supabase transcript provider", () => {

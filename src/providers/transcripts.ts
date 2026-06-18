@@ -96,6 +96,17 @@ export function transcriptProviderFromEnv(env: Record<string, string | undefined
       env.TRANSCRIPT_LANGUAGE || undefined,
     );
   }
+  if (env.TRANSCRIPT_PROXY_URL) {
+    try {
+      const proxyUrl = new URL(env.TRANSCRIPT_PROXY_URL);
+      if (proxyUrl.protocol === "http:" || proxyUrl.protocol === "https:") {
+        return new YouTubeTranscriptProvider(env.TRANSCRIPT_LANGUAGE || undefined, proxyUrl.toString());
+      }
+      console.warn("unsupported_transcript_proxy_protocol", { protocol: proxyUrl.protocol });
+    } catch {
+      console.warn("invalid_transcript_proxy_url");
+    }
+  }
   if (env.TRANSCRIPT_SUPABASE_URL && env.TRANSCRIPT_FUNCTION_SECRET) {
     return new ExternalTranscriptProvider(
       env.TRANSCRIPT_SUPABASE_URL,

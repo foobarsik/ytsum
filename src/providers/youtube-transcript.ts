@@ -1,10 +1,12 @@
 import { decode } from "html-entities";
+import { fetch as undiciFetch, ProxyAgent } from "undici";
 import {
   fetchTranscript,
   YoutubeTranscriptDisabledError,
   YoutubeTranscriptNotAvailableError,
   YoutubeTranscriptNotAvailableLanguageError,
   YoutubeTranscriptVideoUnavailableError,
+  type FetchParams,
   type TranscriptSegment,
 } from "youtube-transcript-plus";
 import type { TranscriptProvider, TranscriptResult } from "./contracts";
@@ -18,7 +20,28 @@ export function segmentsToText(segments: TranscriptSegment[]): string {
 }
 
 export class YouTubeTranscriptProvider implements TranscriptProvider {
-  constructor(private readonly language?: string) {}
+  private readonly proxyAgent?: ProxyAgent;
+  readonly transport: "direct" | "proxy";
+
+  constructor(private readonly language?: string, proxyUrl?: string) {
+    this.proxyAgent = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
+    this.transport = this.proxyAgent ? "proxy" : "direct";
+  }
+
+  private proxyFetch = async (params: FetchParams): Promise<Response> => {
+    const response = await undiciFetch(params.url, {
+      dispatcher: this.proxyAgent,
+      method: params.method ?? "GET",
+      headers: {
+        "user-agent": params.userAgent ?? "Mozilla/5.0",
+        ...(params.lang ? { "accept-language": params.lang } : {}),
+        ...params.headers,
+      },
+      ...(params.body ? { body: params.body } : {}),
+      signal: params.signal,
+    });
+    return response as unknown as Response;
+  };
 
   async getTranscript(videoId: string): Promise<TranscriptResult> {
     const controller = new AbortController();
@@ -29,6 +52,11 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
         retries: 1,
         retryDelay: 500,
         signal: controller.signal,
+        ...(this.proxyAgent ? {
+          videoFetch: this.proxyFetch,
+          playerFetch: this.proxyFetch,
+          transcriptFetch: this.proxyFetch,
+        } : {}),
       });
       const transcript = segmentsToText(segments);
       return transcript ? { status: "available", transcript } : { status: "unavailable" };
