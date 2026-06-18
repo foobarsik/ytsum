@@ -59,6 +59,7 @@ export interface Playlist {
   isDemo: boolean;
   videos: Video[];
   analysis: PlaylistAnalysis;
+  analysisGeneratedAt?: string;
   questions: QuestionAnswer[];
   createdAt: string;
 }

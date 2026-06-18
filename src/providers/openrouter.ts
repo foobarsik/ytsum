@@ -27,7 +27,13 @@ export class OpenRouterProvider implements AIProvider {
 
   async analyzePlaylist({ mode, videos }: Parameters<AIProvider["analyzePlaylist"]>[0]): Promise<PlaylistAnalysis> {
     const usable = videos.filter((v) => v.transcript).map((v) => ({ id: v.id, title: v.title, transcript: v.transcript?.slice(0, 30_000) }));
-    const raw = await this.json(routeModel(taskForMode(mode), modelConfigFromEnv()), `Analyze this playlist in ${mode} mode. Do not judge videos without transcripts. Return only JSON matching the requested mode contract. Videos: ${JSON.stringify(usable)}`);
+    const contracts = {
+      inbox: "{overview:string,recommended:Recommendation[],lowPriority:Recommendation[],duplicates:string[],needsTranscript:string[],warnings:string[]}",
+      learning: "{overview:string,learningPath:Recommendation[],prerequisites:string[],missingTopics:string[],exercises:string[],warnings:string[]}",
+      research: "{overview:string,themes:string[],consensus:string[],disagreements:string[],recurringClaims:Recommendation[],weakSignals:string[],claimsToVerify:string[],missingAngles:string[],warnings:string[]}",
+    } as const;
+    const recommendation = "Recommendation={videoId:string,label:string,reason:string,confidence:'low'|'medium'|'high',evidenceBasis:string}";
+    const raw = await this.json(routeModel(taskForMode(mode), modelConfigFromEnv()), `Analyze this playlist in ${mode} mode. Do not judge videos without transcripts. Return only JSON matching ${contracts[mode]}. ${recommendation}. Videos: ${JSON.stringify(usable)}`);
     if (mode === "inbox") { const out = inboxAgentOutputSchema.parse(raw); return { mode, overview: out.overview, recommended: out.recommended, lowPriority: out.lowPriority, sections: [{ title: "Possible duplicates", items: out.duplicates }, { title: "Needs transcript", items: out.needsTranscript }], warnings: out.warnings }; }
     if (mode === "learning") { const out = learningAgentOutputSchema.parse(raw); return { mode, overview: out.overview, recommended: out.learningPath, lowPriority: [], sections: [{ title: "Prerequisites", items: out.prerequisites }, { title: "Missing topics", items: out.missingTopics }, { title: "Exercises", items: out.exercises }], warnings: out.warnings }; }
     const out = researchAgentOutputSchema.parse(raw); return { mode, overview: out.overview, recommended: out.recurringClaims, lowPriority: [], sections: [{ title: "Themes", items: out.themes }, { title: "Consensus", items: out.consensus }, { title: "Disagreements", items: out.disagreements }, { title: "Claims to verify", items: out.claimsToVerify }, { title: "Missing angles", items: out.missingAngles }], warnings: out.warnings };

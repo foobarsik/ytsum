@@ -1,6 +1,6 @@
 import type { AgentMode, Playlist, PlaylistAnalysis, Video } from "@/domain/types";
 
-const thumbnails = ["#ede9fe", "#e0f2fe", "#dcfce7", "#fef3c7"];
+const thumbnails = ["#f3f3f3", "#fff1f2", "#eaeaea", "#fafafa"];
 
 function video(id: string, title: string, channel: string, index: number, summary: string, priority: Video["priority"] = "recommended"): Video {
   return {

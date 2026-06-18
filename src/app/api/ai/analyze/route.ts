@@ -12,9 +12,10 @@ export async function POST(request: Request) {
   try {
     if (!process.env.OPENROUTER_API_KEY) return NextResponse.json({ error: { code: "NOT_CONFIGURED", message: "OpenRouter AI analysis is not configured. Demo analysis remains available." } }, { status: 503 });
     const input = requestSchema.parse(await request.json());
-    const chars = input.videos.reduce((sum, video) => sum + (video.transcript?.length ?? 0), 0);
-    if (chars > Number(process.env.MAX_AI_INPUT_CHARS ?? 160_000)) return NextResponse.json({ error: { code: "COST_GUARD", message: "This batch is too large. Analyze fewer videos at a time." } }, { status: 413 });
+    const transcriptCount = input.videos.filter((video) => video.transcript).length;
+    const perTranscriptLimit = Math.floor(Number(process.env.MAX_AI_INPUT_CHARS ?? 160_000) / Math.max(transcriptCount, 1));
+    const videos = input.videos.map((video) => video.transcript ? { ...video, transcript: video.transcript.slice(0, perTranscriptLimit) } : video);
     const provider = new OpenRouterProvider(process.env.OPENROUTER_API_KEY, process.env.OPENROUTER_BASE_URL);
-    return NextResponse.json(await provider.analyzePlaylist(input));
+    return NextResponse.json(await provider.analyzePlaylist({ ...input, videos }));
   } catch (error) { const mapped = mapExternalError(error); console.error("ai_analysis_failed", { code: mapped.code }); return NextResponse.json({ error: { code: mapped.code, message: mapped.message, retryable: mapped.retryable } }, { status: 502 }); }
 }

@@ -12,7 +12,7 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-2xl">
       <div className="mb-7"><p className="eyebrow mb-2">Preferences</p><h1 className="text-3xl font-bold">Settings</h1><p className="muted mt-2">Defaults apply to every video unless overridden on its page.</p></div>
       <section className="surface p-5 sm:p-7">
-        <div className="mb-5 flex items-start gap-3"><Languages className="mt-0.5 text-violet-600" size={20}/><div><h2 className="font-bold">Summary language</h2><p className="muted mt-1 text-sm">OpenRouter will generate summaries, key points, and action items in this language.</p></div></div>
+        <div className="mb-5 flex items-start gap-3"><Languages className="mt-0.5 text-[#E11D2A]" size={20}/><div><h2 className="font-bold">Summary language</h2><p className="muted mt-1 text-sm">OpenRouter will generate summaries, key points, and action items in this language.</p></div></div>
         <label className="label" htmlFor="summary-language">Default language</label>
         <select id="summary-language" className="field" value={language} onChange={(event) => setLanguage(event.target.value as SummaryLanguage)}>
           {summaryLanguages.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}
