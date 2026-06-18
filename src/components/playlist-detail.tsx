@@ -16,7 +16,8 @@ export function PlaylistDetail({ playlist }: { playlist: Playlist }) {
   async function runAnalysis() {
     setBusy("analysis"); setNotice("");
     try {
-      const response = await fetch("/api/ai/analyze", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: playlist.mode, depth: playlist.summaryDepth, videos: playlist.videos }) });
+      const videos = playlist.videos.map((video) => ({ ...video, transcript: video.cleanedTranscript ?? video.transcript }));
+      const response = await fetch("/api/ai/analyze", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: playlist.mode, depth: playlist.summaryDepth, videos }) });
       const result = await response.json() as Playlist["analysis"] & { error?: { message?: string } };
       if (!response.ok || !result.overview) throw new Error(result.error?.message ?? "Could not analyze the playlist.");
       update(playlist.id, (current) => ({ ...current, analysis: result, analysisGeneratedAt: new Date().toISOString(), status: "ready" }));

@@ -8,5 +8,6 @@ export interface TranscriptProvider { getTranscript(videoId: string): Promise<Tr
 export interface AIProvider {
   analyzePlaylist(input: { mode: AgentMode; videos: Video[]; depth: SummaryDepth }): Promise<PlaylistAnalysis>;
   summarizeVideo(input: { video: Video; depth: SummaryDepth; language: SummaryLanguage }): Promise<Pick<Video, "summary" | "keyPoints" | "actionItems">>;
+  cleanTranscriptChunk(input: { text: string; part: number; total: number; language: SummaryLanguage }): Promise<string>;
   answerQuestion(input: { question: string; videos: Video[] }): Promise<{ answer: string; sourceVideoIds: string[] }>;
 }

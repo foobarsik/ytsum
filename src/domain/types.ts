@@ -23,6 +23,10 @@ export interface Video {
   thumbnail: string;
   transcriptStatus: TranscriptStatus;
   transcript?: string;
+  cleanedTranscript?: string;
+  transcriptCleanedAt?: string;
+  transcriptEditVersion?: number;
+  transcriptEditLanguage?: import("./summary-languages").SummaryLanguage;
   priority: Priority;
   priorityReason: string;
   summary?: string;
