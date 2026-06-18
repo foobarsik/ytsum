@@ -13,6 +13,7 @@ interface ImportedPlaylist {
   title: string;
   description: string;
   videos: Playlist["videos"];
+  nextPageToken?: string;
 }
 
 function createLivePlaylist(metadata: ImportedPlaylist, mode: AgentMode, depth: SummaryDepth, title?: string): Playlist {
@@ -20,6 +21,8 @@ function createLivePlaylist(metadata: ImportedPlaylist, mode: AgentMode, depth: 
   return {
     id: `${metadata.id}-${Date.now()}`,
     youtubePlaylistId: metadata.id,
+    youtubeNextPageToken: metadata.nextPageToken,
+    youtubeHasMore: Boolean(metadata.nextPageToken),
     title: title?.trim() || metadata.title,
     description: metadata.description,
     mode,

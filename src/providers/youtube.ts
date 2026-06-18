@@ -8,7 +8,7 @@ interface YouTubeResponse { items?: YouTubeItem[]; nextPageToken?: string; error
 export class YouTubeDataApiProvider implements YouTubeMetadataProvider {
   constructor(private readonly apiKey: string, private readonly maxVideos = 50) {}
 
-  async getPlaylist(playlistId: string, options: { excludeVideoIds?: Set<string>; addedAfter?: string; allowEmpty?: boolean } = {}): Promise<YouTubePlaylistMetadata> {
+  async getPlaylist(playlistId: string, options: { excludeVideoIds?: Set<string>; addedAfter?: string; pageToken?: string; allowEmpty?: boolean } = {}): Promise<YouTubePlaylistMetadata> {
     try {
       const playlistUrl = new URL("https://www.googleapis.com/youtube/v3/playlists");
       playlistUrl.search = new URLSearchParams({ part: "snippet", id: playlistId, key: this.apiKey }).toString();
@@ -19,10 +19,10 @@ export class YouTubeDataApiProvider implements YouTubeMetadataProvider {
       if (!playlist) throw new AppError("PRIVATE_PLAYLIST", "This playlist is private or cannot be accessed.");
 
       const videos: Video[] = [];
-      let pageToken: string | undefined;
+      let pageToken = options.pageToken;
       do {
         const itemsUrl = new URL("https://www.googleapis.com/youtube/v3/playlistItems");
-        itemsUrl.search = new URLSearchParams({ part: "snippet", playlistId, maxResults: "50", key: this.apiKey, ...(pageToken ? { pageToken } : {}) }).toString();
+        itemsUrl.search = new URLSearchParams({ part: "snippet", playlistId, maxResults: String(Math.min(this.maxVideos, 50)), key: this.apiKey, ...(pageToken ? { pageToken } : {}) }).toString();
         const response = await fetch(itemsUrl);
         const data = await response.json() as YouTubeResponse;
         if (!response.ok) throw new Error(data.error?.message ?? "YouTube request failed");
@@ -37,7 +37,7 @@ export class YouTubeDataApiProvider implements YouTubeMetadataProvider {
         pageToken = data.nextPageToken;
       } while (pageToken && videos.length < this.maxVideos);
       if (!videos.length && !options.allowEmpty) throw new AppError("EMPTY_PLAYLIST", "This playlist has no accessible videos.");
-      return { id: playlistId, title: playlist.title ?? "YouTube playlist", description: playlist.description ?? "", videos };
+      return { id: playlistId, title: playlist.title ?? "YouTube playlist", description: playlist.description ?? "", videos, nextPageToken: pageToken };
     } catch (error) { throw mapExternalError(error); }
   }
 }

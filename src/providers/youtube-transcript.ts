@@ -35,10 +35,15 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
     } catch (error) {
       if (
         error instanceof YoutubeTranscriptDisabledError ||
-        error instanceof YoutubeTranscriptNotAvailableError ||
         error instanceof YoutubeTranscriptNotAvailableLanguageError ||
         error instanceof YoutubeTranscriptVideoUnavailableError
       ) return { status: "unavailable" };
+      // NotAvailableError is ambiguous: YouTube also returns it when a
+      // datacenter/serverless IP is blocked. Do not claim captions are absent.
+      if (error instanceof YoutubeTranscriptNotAvailableError) {
+        console.warn("transcript_fetch_not_available", { videoId, possibleProviderBlock: true });
+        return { status: "failed" };
+      }
       console.warn("transcript_fetch_failed", { videoId, error: error instanceof Error ? error.name : "unknown" });
       return { status: "failed" };
     } finally {

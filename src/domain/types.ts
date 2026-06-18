@@ -55,6 +55,8 @@ export interface QuestionAnswer {
 export interface Playlist {
   id: string;
   youtubePlaylistId: string;
+  youtubeNextPageToken?: string;
+  youtubeHasMore?: boolean;
   title: string;
   description: string;
   mode: AgentMode;
