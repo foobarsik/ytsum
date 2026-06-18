@@ -17,12 +17,13 @@ export function PlaylistDetail({ playlist }: { playlist: Playlist }) {
   async function refreshPlaylist() {
     setBusy("refresh"); setNotice("");
     try {
-      const response = await fetch("/api/playlists/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: `https://www.youtube.com/playlist?list=${encodeURIComponent(playlist.youtubePlaylistId)}`, mode: playlist.mode, summaryDepth: playlist.summaryDepth, knownVideoIds: playlist.videos.map((video) => video.youtubeId) }) });
+      const addedAfter = playlist.videos.map((video) => video.publishedAt).filter(Boolean).sort().at(-1);
+      const response = await fetch("/api/playlists/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: `https://www.youtube.com/playlist?list=${encodeURIComponent(playlist.youtubePlaylistId)}`, mode: playlist.mode, summaryDepth: playlist.summaryDepth, knownVideoIds: playlist.videos.map((video) => video.youtubeId), addedAfter }) });
       const result = await response.json() as { title?: string; description?: string; videos?: Playlist["videos"]; error?: { message?: string } };
       if (!response.ok || !result.videos) throw new Error(result.error?.message ?? "Could not refresh the playlist.");
       const existingIds = new Set(playlist.videos.map((video) => video.youtubeId));
       const added = result.videos.filter((video) => !existingIds.has(video.youtubeId));
-      if (added.length) update(playlist.id, (current) => ({ ...current, title: result.title || current.title, description: result.description ?? current.description, videos: [...current.videos, ...added] }));
+      if (added.length) update(playlist.id, (current) => ({ ...current, title: result.title || current.title, description: result.description ?? current.description, videos: [...added, ...current.videos] }));
       setNotice(added.length ? `${added.length} new video${added.length === 1 ? "" : "s"} added.` : "Playlist is already up to date.");
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not refresh the playlist."); }
     finally { setBusy(null); }

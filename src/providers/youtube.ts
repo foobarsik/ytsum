@@ -8,7 +8,7 @@ interface YouTubeResponse { items?: YouTubeItem[]; nextPageToken?: string; error
 export class YouTubeDataApiProvider implements YouTubeMetadataProvider {
   constructor(private readonly apiKey: string, private readonly maxVideos = 50) {}
 
-  async getPlaylist(playlistId: string, options: { excludeVideoIds?: Set<string>; allowEmpty?: boolean } = {}): Promise<YouTubePlaylistMetadata> {
+  async getPlaylist(playlistId: string, options: { excludeVideoIds?: Set<string>; addedAfter?: string; allowEmpty?: boolean } = {}): Promise<YouTubePlaylistMetadata> {
     try {
       const playlistUrl = new URL("https://www.googleapis.com/youtube/v3/playlists");
       playlistUrl.search = new URLSearchParams({ part: "snippet", id: playlistId, key: this.apiKey }).toString();
@@ -30,6 +30,7 @@ export class YouTubeDataApiProvider implements YouTubeMetadataProvider {
           const snippet = item.snippet; const youtubeId = snippet?.resourceId?.videoId;
           if (!youtubeId || snippet?.title === "Deleted video" || snippet?.title === "Private video") continue;
           if (options.excludeVideoIds?.has(youtubeId)) continue;
+          if (options.addedAfter && (!snippet?.publishedAt || snippet.publishedAt < options.addedAfter)) continue;
           videos.push({ id: youtubeId, youtubeId, title: snippet?.title ?? "Untitled video", channel: snippet?.channelTitle ?? "Unknown channel", duration: "Unknown", publishedAt: snippet?.publishedAt ?? "", thumbnail: snippet?.thumbnails?.medium?.url ?? snippet?.thumbnails?.default?.url ?? "", transcriptStatus: "unavailable", priority: "unclear", priorityReason: "Transcript is not available yet." });
           if (videos.length >= this.maxVideos) break;
         }
