@@ -6,7 +6,7 @@ import { PwaClient } from "@/components/pwa-client";
 import "./globals.css";
 
 export const metadata: Metadata = { title: { default: "PlaylistMind", template: "%s · PlaylistMind" }, description: "AI agents for your YouTube playlists", applicationName: "PlaylistMind", manifest: "/manifest.webmanifest", appleWebApp: { capable: true, title: "PlaylistMind", statusBarStyle: "default" }, icons: { apple: "/icons/icon-192.png" } };
-export const viewport: Viewport = { themeColor: "#e11d2a", width: "device-width", initialScale: 1, viewportFit: "cover" };
+export const viewport: Viewport = { themeColor: "#ea580c", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const hasYouTube = Boolean(process.env.YOUTUBE_API_KEY);
