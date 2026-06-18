@@ -4,13 +4,16 @@ import { parseYouTubePlaylistUrl } from "@/domain/youtube-url";
 import { mapExternalError } from "@/domain/errors";
 import { YouTubeDataApiProvider } from "@/providers/youtube";
 import { enrichVideosWithTranscripts, YouTubeTranscriptProvider } from "@/providers/youtube-transcript";
+import { z } from "zod";
+
+const importSchema = addPlaylistSchema.extend({ knownVideoIds: z.array(z.string().min(1)).max(500).optional() });
 
 export async function POST(request: Request) {
   try {
     if (!process.env.YOUTUBE_API_KEY) return NextResponse.json({ error: { code: "NOT_CONFIGURED", message: "Live YouTube import is not configured. Use demo mode or add YOUTUBE_API_KEY." } }, { status: 503 });
-    const input = addPlaylistSchema.parse(await request.json()); const id = parseYouTubePlaylistUrl(input.url);
+    const input = importSchema.parse(await request.json()); const id = parseYouTubePlaylistUrl(input.url);
     const provider = new YouTubeDataApiProvider(process.env.YOUTUBE_API_KEY, Number(process.env.MAX_VIDEOS_PER_BATCH ?? 25));
-    const playlist = await provider.getPlaylist(id);
+    const playlist = await provider.getPlaylist(id, { excludeVideoIds: input.knownVideoIds ? new Set(input.knownVideoIds) : undefined, allowEmpty: Boolean(input.knownVideoIds) });
     const transcriptProvider = new YouTubeTranscriptProvider(process.env.TRANSCRIPT_LANGUAGE);
     const videos = await enrichVideosWithTranscripts(playlist.videos, transcriptProvider, Number(process.env.TRANSCRIPT_CONCURRENCY ?? 3));
     return NextResponse.json({ ...playlist, videos });
