@@ -50,7 +50,7 @@ export default function VideoPage() {
       const result = await response.json() as { cleanedTranscript?: string; error?: { message?: string } };
       if (!response.ok || !result.cleanedTranscript) throw new Error(result.error?.message ?? "Could not clean the transcript.");
       patchVideo({ cleanedTranscript: result.cleanedTranscript, transcriptCleanedAt: new Date().toISOString(), transcriptEditVersion: 3, transcriptEditLanguage: summaryLanguage });
-      setShowTranscriptReader(true); setNotice("Condensed editorial transcript created through OpenRouter.");
+      setShowTranscriptReader(true);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not clean the transcript."); }
     finally { setBusy(null); }
   }
