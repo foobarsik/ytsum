@@ -11,18 +11,24 @@ import { usePlaylists } from "./playlist-provider";
 
 type FilterValue = "all" | Priority | "needs-transcript" | "summarized";
 const modeNames = { inbox: "Inbox Agent", learning: "Learning Agent", research: "Research Agent" };
+// Must stay <= MAX_VIDEOS_PER_BATCH in src/app/api/ai/analyze/route.ts (the server rejects larger batches).
+const ANALYSIS_BATCH = 25;
 export function PlaylistDetail({ playlist }: { playlist: Playlist }) {
   const router = useRouter(); const { update, remove } = usePlaylists(); const [filter, setFilter] = useState<FilterValue>("all"); const [busy, setBusy] = useState<"analysis" | "summary" | "refresh" | "load-more" | null>(null); const [notice, setNotice] = useState("");
   const filtered = useMemo(() => playlist.videos.filter((video) => filter === "all" || filter === video.priority || (filter === "needs-transcript" && !video.transcript) || (filter === "summarized" && Boolean(video.summary))), [playlist.videos, filter]);
   async function runAnalysis() {
     setBusy("analysis"); setNotice("");
     try {
-      const videos = playlist.videos.map((video) => ({ ...video, transcript: video.cleanedTranscript ?? video.transcript }));
+      const withTranscript = playlist.videos.filter((video) => video.cleanedTranscript ?? video.transcript);
+      if (!withTranscript.length) throw new Error("No videos have transcripts yet. Import or add transcripts before running analysis.");
+      const videos = withTranscript.slice(0, ANALYSIS_BATCH).map((video) => ({ ...video, transcript: video.cleanedTranscript ?? video.transcript }));
       const response = await fetch("/api/ai/analyze", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: playlist.mode, depth: playlist.summaryDepth, videos }) });
       const result = await response.json() as Playlist["analysis"] & { error?: { message?: string } };
       if (!response.ok || !result.overview) throw new Error(result.error?.message ?? "Could not analyze the playlist.");
       update(playlist.id, (current) => ({ ...current, analysis: result, analysisGeneratedAt: new Date().toISOString(), status: "ready" }));
-      setNotice("Playlist analysis completed through OpenRouter.");
+      setNotice(withTranscript.length > ANALYSIS_BATCH
+        ? `Analyzed the first ${ANALYSIS_BATCH} of ${withTranscript.length} videos with transcripts.`
+        : "Playlist analysis completed through OpenRouter.");
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not analyze the playlist."); }
     finally { setBusy(null); }
   }
