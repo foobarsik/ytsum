@@ -1,12 +1,58 @@
 import OpenAI from "openai";
 import { jsonrepair } from "jsonrepair";
 import { AppError } from "@/domain/errors";
-import { inboxAgentOutputSchema, learningAgentOutputSchema, researchAgentOutputSchema } from "@/domain/schemas";
-import type { PlaylistAnalysis } from "@/domain/types";
+import { inboxAgentOutputSchema, learningAgentOutputSchema, researchAgentOutputSchema, watchlistInsightOutputSchema, watchlistTermReviewOutputSchema, type WatchlistInsightOutput } from "@/domain/schemas";
+import type { PlaylistAnalysis, WatchlistTermReview, WatchlistTermVerificationStatus } from "@/domain/types";
 import { summaryLanguageName } from "@/domain/summary-languages";
 import type { AIProvider } from "./contracts";
 import { modelConfigFromEnv, routeModel, taskForMode } from "./model-routing";
 import { buildCondensedTranscriptPrompt } from "./prompts/condensed-transcript";
+import { buildWatchlistReviewPrompt } from "./prompts/watchlist-review";
+import { buildWatchlistTermReviewPrompt } from "./prompts/watchlist-term-review";
+
+const watchlistInsightResponseFormat = { type: "json_object" as const };
+
+const decisionSignalTypes = new Set(["workflow_shift", "role_shift", "tooling_opportunity", "market_shift", "user_behavior_shift"]);
+
+function signalWords(value: string): Set<string> {
+  return new Set((value.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])
+    .filter((word) => word.length > 3)
+    .map((word) => word
+      .replace(/ies$/u, "y")
+      .replace(/(ing|ed|es|s)$/u, "")
+      .replace(/(иями|ами|ями|ого|ему|ами|ями|ах|ях|ы|и|а|я)$/u, ""))
+    .filter((word) => word.length > 2));
+}
+
+function signalsOverlap(left: string, right: string): number {
+  const leftWords = signalWords(left); const rightWords = signalWords(right);
+  if (!leftWords.size || !rightWords.size) return 0;
+  const shared = [...leftWords].filter((word) => rightWords.has(word)).length;
+  return shared / Math.min(leftWords.size, rightWords.size);
+}
+
+export function rankWatchlistSignals(signals: WatchlistInsightOutput["signals"], terms: WatchlistTermReview[] = []) {
+  const ranked = signals
+    .map((signal) => {
+      const signalText = `${signal.claim} ${signal.evidenceFromVideo} ${signal.productOpportunity}`.toLowerCase();
+      const relatedTerms = terms.filter((term) => signalText.includes(term.rawTerm.toLowerCase()) || Boolean(term.canonicalTerm && signalText.includes(term.canonicalTerm.toLowerCase())));
+      const unverified = relatedTerms.some((term) => term.status === "needs_verification");
+      const corrected = relatedTerms.some((term) => term.status === "corrected_asr_term");
+      const sourceBacked = relatedTerms.some((term) => term.status === "source_backed");
+      const verificationStatus: WatchlistTermVerificationStatus | "no_risky_terms" = unverified ? "needs_verification" : corrected ? "corrected_asr_term" : sourceBacked ? "source_backed" : "no_risky_terms";
+      return {
+        ...signal,
+        productOpportunity: unverified ? "" : signal.productOpportunity,
+        score: signal.novelty + signal.specificity + signal.actionability + signal.marketImpact - signal.hypeRisk,
+        verificationStatus,
+        evidenceLevel: unverified ? "Transcript-only; terminology is unverified." : relatedTerms.length ? "Transcript plus source-metadata term match." : signal.evidence >= 4 ? "Concrete transcript evidence." : "Transcript interpretation; external verification may still be required.",
+        sourceFragility: unverified ? `ASR-risk term: ${relatedTerms.filter((term) => term.status === "needs_verification").map((term) => term.rawTerm).join(", ")}` : corrected ? `Auto-subtitle term corrected from source metadata: ${relatedTerms.filter((term) => term.status === "corrected_asr_term").map((term) => term.rawTerm).join(", ")}` : "No material ASR-risk term detected.",
+      };
+    })
+    .filter((signal) => decisionSignalTypes.has(signal.signalType) && signal.evidence >= 2 && signal.score >= 10)
+    .sort((left, right) => right.score - left.score);
+  return ranked.filter((signal, index) => ranked.slice(0, index).every((existing) => signalsOverlap(existing.claim, signal.claim) < 0.65)).slice(0, 8);
+}
 
 function stripCodeFence(content: string): string {
   return content.trim().replace(/^```(?:json|markdown|md)?\s*/i, "").replace(/\s*```$/i, "").trim();
@@ -26,12 +72,12 @@ export class OpenRouterProvider implements AIProvider {
     this.client = new OpenAI({ apiKey, baseURL, timeout: 45_000, maxRetries: 1 });
   }
 
-  private async json(model: string, prompt: string, responseFormat: { type: "json_object" } | { type: "json_schema"; json_schema: { name: string; strict: true; schema: Record<string, unknown> } } = { type: "json_object" }, plainTextKey?: string): Promise<unknown> {
+  private async json(model: string, prompt: string, responseFormat: { type: "json_object" } | { type: "json_schema"; json_schema: { name: string; strict: true; schema: Record<string, unknown> } } = { type: "json_object" }, plainTextKey?: string, maxTokens = 4_000): Promise<unknown> {
     const response = await this.client.chat.completions.create({
       model,
       messages: [{ role: "user", content: prompt }],
       response_format: responseFormat,
-      max_tokens: 4_000,
+      max_tokens: maxTokens,
       temperature: 0.2,
     });
     const content = response.choices[0]?.message.content;
@@ -97,6 +143,35 @@ export class OpenRouterProvider implements AIProvider {
     ) as { cleanedText?: string };
     if (!raw.cleanedText?.trim()) throw new AppError("INVALID_AI_OUTPUT", "OpenRouter returned an invalid cleaned transcript.", true);
     return raw.cleanedText.trim();
+  }
+
+  async inspectWatchlistTerms(input: Parameters<AIProvider["inspectWatchlistTerms"]>[0]) {
+    const prompt = buildWatchlistTermReviewPrompt({
+      transcript: input.transcript.slice(0, Number(process.env.MAX_AI_INPUT_CHARS ?? 160_000)),
+      description: input.description.slice(0, 12_000),
+      language: summaryLanguageName(input.language),
+    });
+    const raw = await this.json(routeModel("triage", modelConfigFromEnv()), prompt, { type: "json_object" }, undefined, 2_000);
+    const parsed = watchlistTermReviewOutputSchema.safeParse(raw);
+    if (!parsed.success) throw new AppError("INVALID_AI_OUTPUT", "OpenRouter returned an invalid technical-term review.", true);
+    return parsed.data.terms;
+  }
+
+  async analyzeWatchlistVideo(input: Parameters<AIProvider["analyzeWatchlistVideo"]>[0]) {
+    const model = routeModel("summary", modelConfigFromEnv());
+    const prompt = buildWatchlistReviewPrompt({
+      ...input,
+      transcript: input.transcript.slice(0, Number(process.env.MAX_AI_INPUT_CHARS ?? 160_000)),
+      language: summaryLanguageName(input.language),
+    });
+    const raw = await this.json(model, prompt, watchlistInsightResponseFormat, undefined, 6_000);
+    const parsed = watchlistInsightOutputSchema.safeParse(raw);
+    if (!parsed.success) {
+      console.warn("watchlist_review_validation_failed", parsed.error.issues.map((issue) => ({ path: issue.path.join("."), code: issue.code, message: issue.message })));
+      throw new AppError("INVALID_AI_OUTPUT", "OpenRouter returned an incomplete watchlist review.", true);
+    }
+    const insight = parsed.data;
+    return { ...insight, terms: input.terms, signals: rankWatchlistSignals(insight.signals, input.terms), model, generatedAt: new Date().toISOString() };
   }
 
   async answerQuestion({ question, videos }: Parameters<AIProvider["answerQuestion"]>[0]) {

@@ -2,6 +2,8 @@
 
 Production-oriented MVP PWA for turning YouTube playlists into prioritized knowledge bases. It runs without credentials in an explicit fixture-backed demo mode.
 
+The Channel Watchlist monitors up to 20 research channels, checks their uploads playlist for new videos, reviews available transcripts for new claims, position changes, marketing signals, reasoning risks, content-quality risks, and early signals, and builds a rolling seven-day digest. In the local-first MVP, stale channels are checked when the Watchlist page opens and can also be refreshed manually.
+
 ## Run
 
 ```bash
@@ -16,6 +18,12 @@ Available manual and auto-generated YouTube captions are fetched during playlist
 For the free Supabase relay, deploy `supabase/functions/youtube-transcript`, set the same random `TRANSCRIPT_FUNCTION_SECRET` in Supabase and Vercel, and set `TRANSCRIPT_SUPABASE_URL` in Vercel to `https://<project-ref>.supabase.co/functions/v1/youtube-transcript`. Set `TRANSCRIPT_CONCURRENCY=1` to reduce the risk of YouTube rate limiting. The paid `TRANSCRIPT_API_KEY` provider takes precedence when both are configured.
 
 For an HTTP(S) proxy, set the server-only `TRANSCRIPT_PROXY_URL` to `http://user:password@host:port`. Proxy mode takes precedence over the Supabase relay and routes the watch page, Innertube player call, and transcript download through the same proxy IP. Keep `TRANSCRIPT_CONCURRENCY=1`.
+
+## Watchlist automation
+
+The browser MVP stores watchlist state locally. Apply `supabase/migrations/20260620054048_channel_watchlist.sql` before moving monitoring to a background worker. The migration provides RLS-protected channel, video, insight, and weekly-digest tables plus a `next_check_at` index for scheduled workers.
+
+Supabase Cron can invoke an Edge Function on a recurring schedule, but the job should be enabled only after Auth is connected and the worker persists reviews to these tables. The weekly digest is intended to be read inside the Watchlist dashboard; email delivery is outside the current scope.
 
 ## Verify
 
