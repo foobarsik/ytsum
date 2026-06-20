@@ -10,7 +10,11 @@ describe("transcript reading format", () => {
   });
 
   it("chunks long unpunctuated captions", () => {
-    expect(formatTranscriptParagraphs("one two three four five six", 10)).toEqual(["one two", "three four", "five six"]);
+    expect(formatTranscriptParagraphs("one two three four five six", 10)).toEqual([
+      "one two",
+      "three four",
+      "five six",
+    ]);
   });
 
   it("splits long transcripts into ordered bounded chunks", () => {

@@ -14,11 +14,18 @@ const requestSchema = z.object({
   youtubeId: z.string().regex(/^[\w-]{11}$/),
   topic: z.string().max(120),
   language: z.enum(summaryLanguages.map((language) => language.code)),
-  priorInsights: z.array(watchlistInsightOutputSchema.extend({
-    signals: z.array(watchlistSignalCandidateSchema.extend({ score: z.number() })).max(8).default([]),
-    generatedAt: z.string(),
-    model: z.string().optional(),
-  })).max(8),
+  priorInsights: z
+    .array(
+      watchlistInsightOutputSchema.extend({
+        signals: z
+          .array(watchlistSignalCandidateSchema.extend({ score: z.number() }))
+          .max(8)
+          .default([]),
+        generatedAt: z.string(),
+        model: z.string().optional(),
+      }),
+    )
+    .max(8),
 });
 
 function providerErrorDetails(error: unknown): string {
@@ -49,12 +56,19 @@ export async function POST(request: Request) {
       );
     }
     if (!process.env.OPENROUTER_API_KEY) {
-      return NextResponse.json({ error: { code: "NOT_CONFIGURED", message: "OpenRouter is not configured." } }, { status: 503 });
+      return NextResponse.json(
+        { error: { code: "NOT_CONFIGURED", message: "OpenRouter is not configured." } },
+        { status: 503 },
+      );
     }
     const input = requestSchema.parse(await request.json());
     const transcriptResult = await transcriptProviderFromEnv().getTranscript(input.youtubeId);
-    if (!transcriptResult.transcript) return NextResponse.json({ transcriptStatus: transcriptResult.status });
-    const provider = new OpenRouterProvider(process.env.OPENROUTER_API_KEY, process.env.OPENROUTER_BASE_URL);
+    if (!transcriptResult.transcript)
+      return NextResponse.json({ transcriptStatus: transcriptResult.status });
+    const provider = new OpenRouterProvider(
+      process.env.OPENROUTER_API_KEY,
+      process.env.OPENROUTER_BASE_URL,
+    );
     const terms = await provider.inspectWatchlistTerms({
       transcript: transcriptResult.transcript,
       description: input.videoDescription,
@@ -72,11 +86,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ transcriptStatus: "available", insight });
   } catch (error) {
     const mapped = mapExternalError(error);
-    console.error(
-      "watchlist_analysis_failed",
-      mapped.code,
-      providerErrorDetails(error),
+    console.error("watchlist_analysis_failed", mapped.code, providerErrorDetails(error));
+    return NextResponse.json(
+      { error: { code: mapped.code, message: mapped.message, retryable: mapped.retryable } },
+      { status: 502 },
     );
-    return NextResponse.json({ error: { code: mapped.code, message: mapped.message, retryable: mapped.retryable } }, { status: 502 });
   }
 }

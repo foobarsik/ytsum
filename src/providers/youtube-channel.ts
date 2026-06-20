@@ -3,16 +3,29 @@ import type { WatchlistVideo } from "@/domain/types";
 
 interface ChannelItem {
   id?: string;
-  snippet?: { title?: string; description?: string; thumbnails?: { medium?: { url?: string }; default?: { url?: string } } };
+  snippet?: {
+    title?: string;
+    description?: string;
+    thumbnails?: { medium?: { url?: string }; default?: { url?: string } };
+  };
   contentDetails?: { relatedPlaylists?: { uploads?: string } };
 }
 
 interface PlaylistItem {
-  snippet?: { title?: string; description?: string; publishedAt?: string; resourceId?: { videoId?: string }; thumbnails?: { medium?: { url?: string }; default?: { url?: string } } };
+  snippet?: {
+    title?: string;
+    description?: string;
+    publishedAt?: string;
+    resourceId?: { videoId?: string };
+    thumbnails?: { medium?: { url?: string }; default?: { url?: string } };
+  };
   contentDetails?: { videoId?: string; videoPublishedAt?: string };
 }
 
-interface YouTubeResponse<T> { items?: T[]; error?: { message?: string } }
+interface YouTubeResponse<T> {
+  items?: T[];
+  error?: { message?: string };
+}
 
 export interface YouTubeChannelMetadata {
   id: string;
@@ -52,17 +65,21 @@ export class YouTubeChannelProvider {
         ...(filter.id ? { id: filter.id } : { forHandle: filter.handle ?? "" }),
       }).toString();
       const response = await fetch(url);
-      const data = await response.json() as YouTubeResponse<ChannelItem>;
+      const data = (await response.json()) as YouTubeResponse<ChannelItem>;
       if (!response.ok) throw new Error(data.error?.message ?? "YouTube channel request failed");
       const channel = data.items?.[0];
       const uploadsPlaylistId = channel?.contentDetails?.relatedPlaylists?.uploads;
-      if (!channel?.id || !uploadsPlaylistId) throw new AppError("EMPTY_PLAYLIST", "YouTube channel was not found.");
+      if (!channel?.id || !uploadsPlaylistId)
+        throw new AppError("EMPTY_PLAYLIST", "YouTube channel was not found.");
       return {
         id: channel.id,
         uploadsPlaylistId,
         title: channel.snippet?.title ?? "YouTube channel",
         description: channel.snippet?.description ?? "",
-        thumbnail: channel.snippet?.thumbnails?.medium?.url ?? channel.snippet?.thumbnails?.default?.url ?? "",
+        thumbnail:
+          channel.snippet?.thumbnails?.medium?.url ??
+          channel.snippet?.thumbnails?.default?.url ??
+          "",
       };
     } catch (error) {
       throw mapExternalError(error);
@@ -79,20 +96,24 @@ export class YouTubeChannelProvider {
         key: this.apiKey,
       }).toString();
       const response = await fetch(url);
-      const data = await response.json() as YouTubeResponse<PlaylistItem>;
+      const data = (await response.json()) as YouTubeResponse<PlaylistItem>;
       if (!response.ok) throw new Error(data.error?.message ?? "YouTube uploads request failed");
       return (data.items ?? []).flatMap((item) => {
         const youtubeId = item.contentDetails?.videoId ?? item.snippet?.resourceId?.videoId;
         const title = item.snippet?.title;
-        if (!youtubeId || !title || title === "Deleted video" || title === "Private video") return [];
-        return [{
-          youtubeId,
-          title,
-          description: item.snippet?.description ?? "",
-          publishedAt: item.contentDetails?.videoPublishedAt ?? item.snippet?.publishedAt ?? "",
-          thumbnail: item.snippet?.thumbnails?.medium?.url ?? item.snippet?.thumbnails?.default?.url ?? "",
-          transcriptStatus: "processing" as const,
-        }];
+        if (!youtubeId || !title || title === "Deleted video" || title === "Private video")
+          return [];
+        return [
+          {
+            youtubeId,
+            title,
+            description: item.snippet?.description ?? "",
+            publishedAt: item.contentDetails?.videoPublishedAt ?? item.snippet?.publishedAt ?? "",
+            thumbnail:
+              item.snippet?.thumbnails?.medium?.url ?? item.snippet?.thumbnails?.default?.url ?? "",
+            transcriptStatus: "processing" as const,
+          },
+        ];
       });
     } catch (error) {
       throw mapExternalError(error);

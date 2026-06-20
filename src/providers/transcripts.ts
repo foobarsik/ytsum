@@ -3,7 +3,9 @@ import { decode } from "html-entities";
 import { YouTubeTranscriptProvider } from "./youtube-transcript";
 
 export class UnconfiguredTranscriptProvider implements TranscriptProvider {
-  async getTranscript(): Promise<TranscriptResult> { return { status: "unavailable" }; }
+  async getTranscript(): Promise<TranscriptResult> {
+    return { status: "unavailable" };
+  }
 }
 
 export class ExternalTranscriptProvider implements TranscriptProvider {
@@ -23,7 +25,7 @@ export class ExternalTranscriptProvider implements TranscriptProvider {
     });
     if (response.status === 404) return { status: "unavailable" };
     if (!response.ok) return { status: "failed" };
-    const data = await response.json() as TranscriptResult;
+    const data = (await response.json()) as TranscriptResult;
     return data.transcript
       ? { status: "available", transcript: data.transcript }
       : { status: data.status ?? "unavailable", ...(data.reason ? { reason: data.reason } : {}) };
@@ -44,7 +46,9 @@ function transcriptText(value: unknown): string {
   }
   if (Array.isArray(value)) {
     return value
-      .map((segment: ManagedTranscriptSegment) => typeof segment?.text === "string" ? segment.text : "")
+      .map((segment: ManagedTranscriptSegment) =>
+        typeof segment?.text === "string" ? segment.text : "",
+      )
       .map((text) => decode(text).replace(/\s+/g, " ").trim())
       .filter(Boolean)
       .join(" ");
@@ -67,7 +71,10 @@ export class ManagedTranscriptProvider implements TranscriptProvider {
       const response = await fetch(this.endpoint, {
         method: "POST",
         headers: { Authorization: `Bearer ${this.token}`, "content-type": "application/json" },
-        body: JSON.stringify({ video: videoId, ...(this.language ? { language: this.language } : {}) }),
+        body: JSON.stringify({
+          video: videoId,
+          ...(this.language ? { language: this.language } : {}),
+        }),
         signal: controller.signal,
       });
       if (response.status === 404) return { status: "unavailable" };
@@ -75,12 +82,15 @@ export class ManagedTranscriptProvider implements TranscriptProvider {
         console.warn("managed_transcript_fetch_failed", { videoId, status: response.status });
         return { status: "failed" };
       }
-      const data = await response.json() as ManagedTranscriptResponse;
+      const data = (await response.json()) as ManagedTranscriptResponse;
       if (data.status === "processing") return { status: "processing" };
       const transcript = transcriptText(data.data?.transcript ?? data.transcript);
       return transcript ? { status: "available", transcript } : { status: "failed" };
     } catch (error) {
-      console.warn("managed_transcript_fetch_failed", { videoId, error: error instanceof Error ? error.name : "unknown" });
+      console.warn("managed_transcript_fetch_failed", {
+        videoId,
+        error: error instanceof Error ? error.name : "unknown",
+      });
       return { status: "failed" };
     } finally {
       clearTimeout(timeout);
@@ -88,7 +98,9 @@ export class ManagedTranscriptProvider implements TranscriptProvider {
   }
 }
 
-export function transcriptProviderFromEnv(env: Record<string, string | undefined> = process.env): TranscriptProvider {
+export function transcriptProviderFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): TranscriptProvider {
   if (env.TRANSCRIPT_API_KEY) {
     return new ManagedTranscriptProvider(
       env.TRANSCRIPT_API_KEY,
@@ -100,14 +112,21 @@ export function transcriptProviderFromEnv(env: Record<string, string | undefined
     try {
       const proxyUrl = new URL(env.TRANSCRIPT_PROXY_URL);
       if (proxyUrl.protocol === "http:" || proxyUrl.protocol === "https:") {
-        return new YouTubeTranscriptProvider(env.TRANSCRIPT_LANGUAGE || undefined, proxyUrl.toString());
+        return new YouTubeTranscriptProvider(
+          env.TRANSCRIPT_LANGUAGE || undefined,
+          proxyUrl.toString(),
+        );
       }
       console.warn("unsupported_transcript_proxy_protocol", { protocol: proxyUrl.protocol });
     } catch {
       console.warn("invalid_transcript_proxy_url");
     }
   }
-  if (env.NODE_ENV !== "development" && env.TRANSCRIPT_SUPABASE_URL && env.TRANSCRIPT_FUNCTION_SECRET) {
+  if (
+    env.NODE_ENV !== "development" &&
+    env.TRANSCRIPT_SUPABASE_URL &&
+    env.TRANSCRIPT_FUNCTION_SECRET
+  ) {
     return new ExternalTranscriptProvider(
       env.TRANSCRIPT_SUPABASE_URL,
       env.TRANSCRIPT_FUNCTION_SECRET,

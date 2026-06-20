@@ -48,19 +48,23 @@ const handler = {
         .map((segment) => decode(segment.text).replace(/\s+/g, " ").trim())
         .filter(Boolean)
         .join(" ");
-      return transcript ? json({ status: "available", transcript }) : json({ status: "unavailable" });
+      return transcript
+        ? json({ status: "available", transcript })
+        : json({ status: "unavailable" });
     } catch (error) {
       if (
         error instanceof YoutubeTranscriptDisabledError ||
         error instanceof YoutubeTranscriptNotAvailableLanguageError ||
         error instanceof YoutubeTranscriptVideoUnavailableError
-      ) return json({ status: "unavailable" });
+      )
+        return json({ status: "unavailable" });
 
-      const reason = error instanceof YoutubeTranscriptTooManyRequestError
-        ? "youtube_rate_limited"
-        : error instanceof YoutubeTranscriptNotAvailableError
-          ? "youtube_rejected_request"
-          : "provider_error";
+      const reason =
+        error instanceof YoutubeTranscriptTooManyRequestError
+          ? "youtube_rate_limited"
+          : error instanceof YoutubeTranscriptNotAvailableError
+            ? "youtube_rejected_request"
+            : "provider_error";
       console.warn("youtube_transcript_failed", {
         videoId: input.videoId,
         error: error instanceof Error ? error.name : "unknown",

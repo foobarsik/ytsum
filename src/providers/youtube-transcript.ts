@@ -23,7 +23,10 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
   private readonly proxyAgent?: ProxyAgent;
   readonly transport: "direct" | "proxy";
 
-  constructor(private readonly language?: string, proxyUrl?: string) {
+  constructor(
+    private readonly language?: string,
+    proxyUrl?: string,
+  ) {
     this.proxyAgent = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
     this.transport = this.proxyAgent ? "proxy" : "direct";
   }
@@ -52,11 +55,13 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
         retries: 1,
         retryDelay: 500,
         signal: controller.signal,
-        ...(this.proxyAgent ? {
-          videoFetch: this.proxyFetch,
-          playerFetch: this.proxyFetch,
-          transcriptFetch: this.proxyFetch,
-        } : {}),
+        ...(this.proxyAgent
+          ? {
+              videoFetch: this.proxyFetch,
+              playerFetch: this.proxyFetch,
+              transcriptFetch: this.proxyFetch,
+            }
+          : {}),
       });
       const transcript = segmentsToText(segments);
       return transcript ? { status: "available", transcript } : { status: "unavailable" };
@@ -65,14 +70,18 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
         error instanceof YoutubeTranscriptDisabledError ||
         error instanceof YoutubeTranscriptNotAvailableLanguageError ||
         error instanceof YoutubeTranscriptVideoUnavailableError
-      ) return { status: "unavailable" };
+      )
+        return { status: "unavailable" };
       // NotAvailableError is ambiguous: YouTube also returns it when a
       // datacenter/serverless IP is blocked. Do not claim captions are absent.
       if (error instanceof YoutubeTranscriptNotAvailableError) {
         console.warn("transcript_fetch_not_available", { videoId, possibleProviderBlock: true });
         return { status: "failed" };
       }
-      console.warn("transcript_fetch_failed", { videoId, error: error instanceof Error ? error.name : "unknown" });
+      console.warn("transcript_fetch_failed", {
+        videoId,
+        error: error instanceof Error ? error.name : "unknown",
+      });
       return { status: "failed" };
     } finally {
       clearTimeout(timeout);
@@ -103,6 +112,8 @@ export async function enrichVideosWithTranscripts(
       };
     }
   }
-  await Promise.all(Array.from({ length: Math.min(Math.max(concurrency, 1), videos.length) }, worker));
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(concurrency, 1), videos.length) }, worker),
+  );
   return enriched;
 }

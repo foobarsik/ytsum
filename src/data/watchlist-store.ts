@@ -8,14 +8,21 @@ export function loadWatchlist(): WatchlistChannel[] {
   if (typeof window === "undefined") return [];
   const value = window.localStorage.getItem(WATCHLIST_STORAGE_KEY);
   if (!value) return [];
-  try { return JSON.parse(value) as WatchlistChannel[]; } catch { return []; }
+  try {
+    return JSON.parse(value) as WatchlistChannel[];
+  } catch {
+    return [];
+  }
 }
 
 export function clearLocalWatchlist(): void {
   window.localStorage.removeItem(WATCHLIST_STORAGE_KEY);
 }
 
-export function mergeWatchlistChannel(current: WatchlistChannel | undefined, incoming: WatchlistChannel): WatchlistChannel {
+export function mergeWatchlistChannel(
+  current: WatchlistChannel | undefined,
+  incoming: WatchlistChannel,
+): WatchlistChannel {
   if (!current) return incoming;
   const incomingIds = new Set(incoming.videos.map((video) => video.youtubeId));
   return {
@@ -23,7 +30,9 @@ export function mergeWatchlistChannel(current: WatchlistChannel | undefined, inc
     ...incoming,
     topic: incoming.topic || current.topic,
     addedAt: current.addedAt,
-    videos: [...incoming.videos, ...current.videos.filter((video) => !incomingIds.has(video.youtubeId))]
-      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)),
+    videos: [
+      ...incoming.videos,
+      ...current.videos.filter((video) => !incomingIds.has(video.youtubeId)),
+    ].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)),
   };
 }

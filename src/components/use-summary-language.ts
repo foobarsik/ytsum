@@ -1,7 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { defaultSummaryLanguage, isSummaryLanguage, type SummaryLanguage } from "@/domain/summary-languages";
+import {
+  defaultSummaryLanguage,
+  isSummaryLanguage,
+  type SummaryLanguage,
+} from "@/domain/summary-languages";
 
 const STORAGE_KEY = "playlist-mind-summary-language";
 const listeners = new Set<() => void>();
@@ -12,9 +16,15 @@ function getSnapshot(): SummaryLanguage {
 }
 
 function subscribe(listener: () => void) {
-  const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_KEY) listener(); };
-  listeners.add(listener); window.addEventListener("storage", onStorage);
-  return () => { listeners.delete(listener); window.removeEventListener("storage", onStorage); };
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY) listener();
+  };
+  listeners.add(listener);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
 }
 
 export function useSummaryLanguage() {

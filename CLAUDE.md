@@ -19,6 +19,7 @@ Data flows through three swappable **provider** interfaces defined in [src/provi
 Playlists currently live in browser `localStorage` (key `playlist-mind-v1`) via [src/data/store.ts](src/data/store.ts); demo fixtures live in [src/data/demo.ts](src/data/demo.ts). The authenticated Channel Watchlist persists channels, videos, and AI reviews in Supabase with per-user RLS. Supabase also hosts the optional transcript relay.
 
 ### Layout
+
 - `src/app/` — routes + API. API routes: `api/ai/{analyze,summarize,clean-transcript}`, `api/playlists/import`, `api/transcripts/[videoId]`, `api/health`. API routes validate input with Zod and map errors via [src/domain/errors.ts](src/domain/errors.ts) (`mapExternalError` → `{code,message,retryable}`).
 - `src/domain/` — pure types + logic, no I/O. Core types in [types.ts](src/domain/types.ts) (`Video`, `Playlist`, `PlaylistAnalysis`). Each `*.ts` has a colocated `*.test.ts`.
 - `src/providers/` — all external I/O lives here behind the contracts above.
@@ -42,7 +43,7 @@ All built on the `youtube-transcript-plus` library, which makes **~3 requests pe
 
 - **Demo mode is a feature, not a fallback to hide.** Demo content is always visibly labeled; never present title/description metadata as a transcript-grounded summary.
 - Providers are constructed from env at the API-route boundary; domain code stays pure and testable.
-- Code style here is **dense** (multi-statement lines, inline objects). Match it.
+- Keep JSX and object literals structurally readable. Use `npm run format`; do not manually collapse components or multiple statements onto one line.
 - Tests are colocated `*.test.ts` (Vitest). Add one when you touch `domain/` or `providers/`.
 - Follow [AGENTS.md](AGENTS.md) whenever inserting a feature into an existing screen or flow.
 
@@ -52,6 +53,8 @@ All built on the `youtube-transcript-plus` library, which makes **~3 requests pe
 npm run dev         # local dev
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
+npm run format      # Prettier write
+npm run format:check # Prettier check
 npm test            # vitest run
 npm run build       # next build
 npm run test:e2e    # playwright (needs: npx playwright install chromium)

@@ -1,5 +1,8 @@
 export function formatTranscriptParagraphs(text: string, targetLength = 650): string[] {
-  const sentences = text.trim().split(/(?<=[.!?…])\s+/u).filter(Boolean);
+  const sentences = text
+    .trim()
+    .split(/(?<=[.!?…])\s+/u)
+    .filter(Boolean);
   const paragraphs: string[] = [];
   let current = "";
 
@@ -32,7 +35,8 @@ export function chunkTranscript(text: string, maxLength = 8_000): string[] {
   let current = "";
   for (const paragraph of paragraphs) {
     if (current && current.length + paragraph.length + 2 > maxLength) {
-      chunks.push(current); current = "";
+      chunks.push(current);
+      current = "";
     }
     current = current ? `${current}\n\n${paragraph}` : paragraph;
   }

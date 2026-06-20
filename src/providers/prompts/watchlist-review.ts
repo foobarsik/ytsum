@@ -21,8 +21,14 @@ export function buildWatchlistReviewPrompt({
 }: WatchlistReviewPromptInput): string {
   const history = priorInsights.slice(0, 8).map((insight) => ({
     claims: insight.claims.map((claim) => claim.text),
-    signals: (insight.signals ?? []).map((signal) => ({ claim: signal.claim, type: signal.signalType })),
-    positions: insight.positionChanges.map((change) => ({ topic: change.topic, position: change.currentPosition })),
+    signals: (insight.signals ?? []).map((signal) => ({
+      claim: signal.claim,
+      type: signal.signalType,
+    })),
+    positions: insight.positionChanges.map((change) => ({
+      topic: change.topic,
+      position: change.currentPosition,
+    })),
   }));
 
   return `

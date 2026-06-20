@@ -4,7 +4,11 @@ interface WatchlistTermReviewPromptInput {
   language: string;
 }
 
-export function buildWatchlistTermReviewPrompt({ transcript, description, language }: WatchlistTermReviewPromptInput): string {
+export function buildWatchlistTermReviewPrompt({
+  transcript,
+  description,
+  language,
+}: WatchlistTermReviewPromptInput): string {
   return `
 You are reviewing noisy YouTube auto-subtitles before signal extraction.
 

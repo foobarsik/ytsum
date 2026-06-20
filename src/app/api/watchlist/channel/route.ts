@@ -27,18 +27,25 @@ export async function POST(request: Request) {
       );
     }
     if (!process.env.YOUTUBE_API_KEY) {
-      return NextResponse.json({ error: { code: "NOT_CONFIGURED", message: "YouTube API is not configured." } }, { status: 503 });
+      return NextResponse.json(
+        { error: { code: "NOT_CONFIGURED", message: "YouTube API is not configured." } },
+        { status: 503 },
+      );
     }
     const input = requestSchema.parse(await request.json());
     const provider = new YouTubeChannelProvider(process.env.YOUTUBE_API_KEY);
     const channel = await provider.getChannel(input.input);
     const known = new Set(input.knownVideoIds ?? []);
-    const videos = (await provider.getLatestVideos(channel.uploadsPlaylistId, input.limit ?? 10))
-      .filter((video) => !known.has(video.youtubeId));
+    const videos = (
+      await provider.getLatestVideos(channel.uploadsPlaylistId, input.limit ?? 10)
+    ).filter((video) => !known.has(video.youtubeId));
     return NextResponse.json({ ...channel, topic: input.topic?.trim() ?? "", videos });
   } catch (error) {
     const mapped = mapExternalError(error);
     console.error("watchlist_channel_failed", { code: mapped.code });
-    return NextResponse.json({ error: { code: mapped.code, message: mapped.message, retryable: mapped.retryable } }, { status: 502 });
+    return NextResponse.json(
+      { error: { code: mapped.code, message: mapped.message, retryable: mapped.retryable } },
+      { status: 502 },
+    );
   }
 }

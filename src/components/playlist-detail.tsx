@@ -2,7 +2,18 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bot, CheckCircle2, Filter, ListPlus, Loader2, MessageSquare, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Bot,
+  CheckCircle2,
+  Filter,
+  ListPlus,
+  Loader2,
+  MessageSquare,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { PriorityBadge, TranscriptBadge } from "./status";
 import { VideoThumbnail } from "./video-thumbnail";
 import type { Playlist, Priority } from "@/domain/types";
@@ -14,65 +25,434 @@ const modeNames = { inbox: "Inbox Agent", learning: "Learning Agent", research: 
 // Must stay <= MAX_VIDEOS_PER_BATCH in src/app/api/ai/analyze/route.ts (the server rejects larger batches).
 const ANALYSIS_BATCH = 25;
 export function PlaylistDetail({ playlist }: { playlist: Playlist }) {
-  const router = useRouter(); const { update, remove } = usePlaylists(); const [filter, setFilter] = useState<FilterValue>("all"); const [busy, setBusy] = useState<"analysis" | "summary" | "refresh" | "load-more" | null>(null); const [notice, setNotice] = useState("");
-  const filtered = useMemo(() => playlist.videos.filter((video) => filter === "all" || filter === video.priority || (filter === "needs-transcript" && !video.transcript) || (filter === "summarized" && Boolean(video.summary))), [playlist.videos, filter]);
+  const router = useRouter();
+  const { update, remove } = usePlaylists();
+  const [filter, setFilter] = useState<FilterValue>("all");
+  const [busy, setBusy] = useState<"analysis" | "summary" | "refresh" | "load-more" | null>(null);
+  const [notice, setNotice] = useState("");
+  const filtered = useMemo(
+    () =>
+      playlist.videos.filter(
+        (video) =>
+          filter === "all" ||
+          filter === video.priority ||
+          (filter === "needs-transcript" && !video.transcript) ||
+          (filter === "summarized" && Boolean(video.summary)),
+      ),
+    [playlist.videos, filter],
+  );
   async function runAnalysis() {
-    setBusy("analysis"); setNotice("");
+    setBusy("analysis");
+    setNotice("");
     try {
-      const withTranscript = playlist.videos.filter((video) => video.cleanedTranscript ?? video.transcript);
-      if (!withTranscript.length) throw new Error("No videos have transcripts yet. Import or add transcripts before running analysis.");
-      const videos = withTranscript.slice(0, ANALYSIS_BATCH).map((video) => ({ ...video, transcript: video.cleanedTranscript ?? video.transcript }));
-      const response = await fetch("/api/ai/analyze", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: playlist.mode, depth: playlist.summaryDepth, videos }) });
-      const result = await response.json() as Playlist["analysis"] & { error?: { message?: string } };
-      if (!response.ok || !result.overview) throw new Error(result.error?.message ?? "Could not analyze the playlist.");
-      update(playlist.id, (current) => ({ ...current, analysis: result, analysisGeneratedAt: new Date().toISOString(), status: "ready" }));
-      setNotice(withTranscript.length > ANALYSIS_BATCH
-        ? `Analyzed the first ${ANALYSIS_BATCH} of ${withTranscript.length} videos with transcripts.`
-        : "Playlist analysis completed through OpenRouter.");
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not analyze the playlist."); }
-    finally { setBusy(null); }
+      const withTranscript = playlist.videos.filter(
+        (video) => video.cleanedTranscript ?? video.transcript,
+      );
+      if (!withTranscript.length)
+        throw new Error(
+          "No videos have transcripts yet. Import or add transcripts before running analysis.",
+        );
+      const videos = withTranscript
+        .slice(0, ANALYSIS_BATCH)
+        .map((video) => ({ ...video, transcript: video.cleanedTranscript ?? video.transcript }));
+      const response = await fetch("/api/ai/analyze", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode: playlist.mode, depth: playlist.summaryDepth, videos }),
+      });
+      const result = (await response.json()) as Playlist["analysis"] & {
+        error?: { message?: string };
+      };
+      if (!response.ok || !result.overview)
+        throw new Error(result.error?.message ?? "Could not analyze the playlist.");
+      update(playlist.id, (current) => ({
+        ...current,
+        analysis: result,
+        analysisGeneratedAt: new Date().toISOString(),
+        status: "ready",
+      }));
+      setNotice(
+        withTranscript.length > ANALYSIS_BATCH
+          ? `Analyzed the first ${ANALYSIS_BATCH} of ${withTranscript.length} videos with transcripts.`
+          : "Playlist analysis completed through OpenRouter.",
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not analyze the playlist.");
+    } finally {
+      setBusy(null);
+    }
   }
-  async function summarizeRecommended() { setBusy("summary"); setNotice(""); await new Promise((resolve) => setTimeout(resolve, 700)); setBusy(null); setNotice("Open each recommended video to generate its summary."); }
+  async function summarizeRecommended() {
+    setBusy("summary");
+    setNotice("");
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    setBusy(null);
+    setNotice("Open each recommended video to generate its summary.");
+  }
   async function refreshPlaylist() {
-    setBusy("refresh"); setNotice("");
+    setBusy("refresh");
+    setNotice("");
     try {
-      const addedAfter = playlist.videos.map((video) => video.publishedAt).filter(Boolean).sort().at(-1);
-      const response = await fetch("/api/playlists/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: `https://www.youtube.com/playlist?list=${encodeURIComponent(playlist.youtubePlaylistId)}`, mode: playlist.mode, summaryDepth: playlist.summaryDepth, knownVideoIds: playlist.videos.map((video) => video.youtubeId), addedAfter }) });
-      const result = await response.json() as { title?: string; description?: string; videos?: Playlist["videos"]; error?: { message?: string } };
-      if (!response.ok || !result.videos) throw new Error(result.error?.message ?? "Could not refresh the playlist.");
+      const addedAfter = playlist.videos
+        .map((video) => video.publishedAt)
+        .filter(Boolean)
+        .sort()
+        .at(-1);
+      const response = await fetch("/api/playlists/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          url: `https://www.youtube.com/playlist?list=${encodeURIComponent(playlist.youtubePlaylistId)}`,
+          mode: playlist.mode,
+          summaryDepth: playlist.summaryDepth,
+          knownVideoIds: playlist.videos.map((video) => video.youtubeId),
+          addedAfter,
+        }),
+      });
+      const result = (await response.json()) as {
+        title?: string;
+        description?: string;
+        videos?: Playlist["videos"];
+        error?: { message?: string };
+      };
+      if (!response.ok || !result.videos)
+        throw new Error(result.error?.message ?? "Could not refresh the playlist.");
       const existingIds = new Set(playlist.videos.map((video) => video.youtubeId));
       const added = result.videos.filter((video) => !existingIds.has(video.youtubeId));
-      if (added.length) update(playlist.id, (current) => ({ ...current, title: result.title || current.title, description: result.description ?? current.description, videos: [...added, ...current.videos], youtubeNextPageToken: undefined, youtubeHasMore: undefined }));
-      setNotice(added.length ? `${added.length} new video${added.length === 1 ? "" : "s"} added.` : "Playlist is already up to date.");
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not refresh the playlist."); }
-    finally { setBusy(null); }
+      if (added.length)
+        update(playlist.id, (current) => ({
+          ...current,
+          title: result.title || current.title,
+          description: result.description ?? current.description,
+          videos: [...added, ...current.videos],
+          youtubeNextPageToken: undefined,
+          youtubeHasMore: undefined,
+        }));
+      setNotice(
+        added.length
+          ? `${added.length} new video${added.length === 1 ? "" : "s"} added.`
+          : "Playlist is already up to date.",
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not refresh the playlist.");
+    } finally {
+      setBusy(null);
+    }
   }
   async function loadMoreVideos() {
-    setBusy("load-more"); setNotice("");
+    setBusy("load-more");
+    setNotice("");
     try {
-      const response = await fetch("/api/playlists/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: `https://www.youtube.com/playlist?list=${encodeURIComponent(playlist.youtubePlaylistId)}`, mode: playlist.mode, summaryDepth: playlist.summaryDepth, knownVideoIds: playlist.videos.map((video) => video.youtubeId), pageToken: playlist.youtubeNextPageToken }) });
-      const result = await response.json() as { videos?: Playlist["videos"]; nextPageToken?: string; error?: { message?: string } };
-      if (!response.ok || !result.videos) throw new Error(result.error?.message ?? "Could not load more videos.");
+      const response = await fetch("/api/playlists/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          url: `https://www.youtube.com/playlist?list=${encodeURIComponent(playlist.youtubePlaylistId)}`,
+          mode: playlist.mode,
+          summaryDepth: playlist.summaryDepth,
+          knownVideoIds: playlist.videos.map((video) => video.youtubeId),
+          pageToken: playlist.youtubeNextPageToken,
+        }),
+      });
+      const result = (await response.json()) as {
+        videos?: Playlist["videos"];
+        nextPageToken?: string;
+        error?: { message?: string };
+      };
+      if (!response.ok || !result.videos)
+        throw new Error(result.error?.message ?? "Could not load more videos.");
       const existingIds = new Set(playlist.videos.map((video) => video.youtubeId));
       const added = result.videos.filter((video) => !existingIds.has(video.youtubeId));
-      update(playlist.id, (current) => ({ ...current, videos: [...current.videos, ...added], youtubeNextPageToken: result.nextPageToken, youtubeHasMore: Boolean(result.nextPageToken) }));
-      setNotice(added.length ? `${added.length} more video${added.length === 1 ? "" : "s"} loaded.` : "No more videos in this playlist.");
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not load more videos."); }
-    finally { setBusy(null); }
+      update(playlist.id, (current) => ({
+        ...current,
+        videos: [...current.videos, ...added],
+        youtubeNextPageToken: result.nextPageToken,
+        youtubeHasMore: Boolean(result.nextPageToken),
+      }));
+      setNotice(
+        added.length
+          ? `${added.length} more video${added.length === 1 ? "" : "s"} loaded.`
+          : "No more videos in this playlist.",
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not load more videos.");
+    } finally {
+      setBusy(null);
+    }
   }
   function deleteVideo(video: Playlist["videos"][number]) {
-    if (!window.confirm(`Remove “${video.title}” from this YouSum playlist? The YouTube playlist will not be changed.`)) return;
+    if (
+      !window.confirm(
+        `Remove “${video.title}” from this YouSum playlist? The YouTube playlist will not be changed.`,
+      )
+    )
+      return;
     update(playlist.id, (current) => removeVideoFromPlaylist(current, video.id));
     setNotice(`“${video.title}” removed from this playlist.`);
   }
-  function deletePlaylist() { if (!window.confirm(`Delete “${playlist.title}”? This cannot be undone.`)) return; remove(playlist.id); router.replace("/"); }
-  return <div className="shell py-8 sm:py-10"><Link href="/" className="mb-7 inline-flex items-center gap-2 text-sm font-semibold text-stone-600"><ArrowLeft size={16}/>Back to playlists</Link><section className="mb-6"><div className="mb-3 flex flex-wrap items-center gap-2"><span className="badge badge-gray">{modeNames[playlist.mode]}</span>{playlist.analysisGeneratedAt && <span className="badge badge-green"><CheckCircle2 size={13}/>Analysis ready</span>}</div><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{playlist.title}</h1><p className="muted mt-2 max-w-3xl">{playlist.description}</p><div className="mt-5 flex flex-wrap gap-2"><button className="button button-primary" onClick={runAnalysis} disabled={Boolean(busy)}>{busy === "analysis" ? <Loader2 className="animate-spin" size={16}/> : <Sparkles size={16}/>}Run analysis</button><button className="button button-secondary" onClick={summarizeRecommended} disabled={Boolean(busy)}>{busy === "summary" ? <Loader2 className="animate-spin" size={16}/> : <Bot size={16}/>}Summarize recommended</button>{!playlist.isDemo && <button className="button button-secondary" onClick={refreshPlaylist} disabled={Boolean(busy)}>{busy === "refresh" ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}Refresh playlist</button>}{!playlist.isDemo && playlist.youtubeHasMore !== false && <button className="button button-secondary" onClick={loadMoreVideos} disabled={Boolean(busy)}>{busy === "load-more" ? <Loader2 className="animate-spin" size={16}/> : <ListPlus size={16}/>}Load next 25</button>}<a href="#ask" className="button button-secondary"><MessageSquare size={16}/>Ask this playlist</a><button className="button button-danger" onClick={deletePlaylist}><Trash2 size={16}/>Delete playlist</button></div><div aria-live="polite" className={`mt-3 text-sm font-medium ${notice.startsWith("Could not") ? "text-red-700" : "text-[#15803D]"}`}>{notice}</div></section>
-    {playlist.analysisGeneratedAt && <section className="surface mb-6 p-5 sm:p-6"><p className="eyebrow mb-2">Agent overview</p><h2 className="sr-only">Analysis overview</h2><p className="max-w-4xl text-lg leading-7">{playlist.analysis.overview}</p>{playlist.analysis.warnings.map((w) => <p key={w} className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Limitation: {w}</p>)}<div className="mt-6 grid gap-4 md:grid-cols-3">{playlist.analysis.sections.slice(0,3).map((section) => <div key={section.title} className="rounded-lg border border-stone-200 p-4"><h3 className="mb-2 font-bold">{section.title}</h3><ul className="space-y-2 text-sm text-stone-600">{section.items.map((item) => <li key={item}>• {item}</li>)}</ul></div>)}</div></section>}
-    <section aria-labelledby="videos-title"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h2 id="videos-title" className="text-xl font-bold">Videos</h2><p className="muted text-sm">{filtered.length} of {playlist.videos.length} shown</p></div><label className="flex items-center gap-2 text-sm font-semibold"><Filter size={15}/><span>Filter</span><select className="field min-h-0 w-auto py-2" value={filter} onChange={(e) => setFilter(e.target.value as FilterValue)}><option value="all">All</option><option value="recommended">Recommended</option><option value="low">Low priority</option><option value="unclear">Unclear</option><option value="needs-transcript">Needs transcript</option><option value="summarized">Summarized</option></select></label></div><div className="surface divide-y divide-stone-200">{filtered.length ? filtered.map((video, index) => <div key={video.id} className="flex items-center hover:bg-[#FAFAF9]"><Link href={`/playlists/${playlist.id}/videos/${video.id}`} className="grid min-w-0 flex-1 gap-4 p-4 sm:grid-cols-[44px_128px_1fr_auto] sm:items-center"><span className="hidden text-center text-sm font-bold text-stone-400 sm:block">{index + 1}</span><VideoThumbnail thumbnail={video.thumbnail} title={video.title} className="w-32 max-w-full"/><div className="min-w-0"><h3 className="font-bold">{video.title}</h3></div><div className="flex flex-wrap gap-2 sm:flex-col sm:items-end"><PriorityBadge priority={video.priority}/><TranscriptBadge status={video.transcriptStatus}/></div></Link><button type="button" className="button button-danger mr-4 shrink-0 px-3" onClick={() => deleteVideo(video)} aria-label={`Remove ${video.title} from playlist`} title="Remove from this playlist"><Trash2 size={16}/></button></div>) : <div className="p-10 text-center"><p className="font-bold">No videos match this filter</p><button className="mt-2 text-sm font-semibold text-[#EA580C]" onClick={() => setFilter("all")}>Show all videos</button></div>}</div></section><PlaylistChat playlist={playlist}/></div>;
+  function deletePlaylist() {
+    if (!window.confirm(`Delete “${playlist.title}”? This cannot be undone.`)) return;
+    remove(playlist.id);
+    router.replace("/");
+  }
+  return (
+    <div className="shell py-8 sm:py-10">
+      <Link
+        href="/"
+        className="mb-7 inline-flex items-center gap-2 text-sm font-semibold text-stone-600"
+      >
+        <ArrowLeft size={16} />
+        Back to playlists
+      </Link>
+      <section className="mb-6">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="badge badge-gray">{modeNames[playlist.mode]}</span>
+          {playlist.analysisGeneratedAt && (
+            <span className="badge badge-green">
+              <CheckCircle2 size={13} />
+              Analysis ready
+            </span>
+          )}
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{playlist.title}</h1>
+        <p className="muted mt-2 max-w-3xl">{playlist.description}</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button className="button button-primary" onClick={runAnalysis} disabled={Boolean(busy)}>
+            {busy === "analysis" ? (
+              <Loader2 className="animate-spin" size={16} />
+            ) : (
+              <Sparkles size={16} />
+            )}
+            Run analysis
+          </button>
+          <button
+            className="button button-secondary"
+            onClick={summarizeRecommended}
+            disabled={Boolean(busy)}
+          >
+            {busy === "summary" ? (
+              <Loader2 className="animate-spin" size={16} />
+            ) : (
+              <Bot size={16} />
+            )}
+            Summarize recommended
+          </button>
+          {!playlist.isDemo && (
+            <button
+              className="button button-secondary"
+              onClick={refreshPlaylist}
+              disabled={Boolean(busy)}
+            >
+              {busy === "refresh" ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <RefreshCw size={16} />
+              )}
+              Refresh playlist
+            </button>
+          )}
+          {!playlist.isDemo && playlist.youtubeHasMore !== false && (
+            <button
+              className="button button-secondary"
+              onClick={loadMoreVideos}
+              disabled={Boolean(busy)}
+            >
+              {busy === "load-more" ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <ListPlus size={16} />
+              )}
+              Load next 25
+            </button>
+          )}
+          <a href="#ask" className="button button-secondary">
+            <MessageSquare size={16} />
+            Ask this playlist
+          </a>
+          <button className="button button-danger" onClick={deletePlaylist}>
+            <Trash2 size={16} />
+            Delete playlist
+          </button>
+        </div>
+        <div
+          aria-live="polite"
+          className={`mt-3 text-sm font-medium ${notice.startsWith("Could not") ? "text-red-700" : "text-[#15803D]"}`}
+        >
+          {notice}
+        </div>
+      </section>
+      {playlist.analysisGeneratedAt && (
+        <section className="surface mb-6 p-5 sm:p-6">
+          <p className="eyebrow mb-2">Agent overview</p>
+          <h2 className="sr-only">Analysis overview</h2>
+          <p className="max-w-4xl text-lg leading-7">{playlist.analysis.overview}</p>
+          {playlist.analysis.warnings.map((w) => (
+            <p key={w} className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+              Limitation: {w}
+            </p>
+          ))}
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {playlist.analysis.sections.slice(0, 3).map((section) => (
+              <div key={section.title} className="rounded-lg border border-stone-200 p-4">
+                <h3 className="mb-2 font-bold">{section.title}</h3>
+                <ul className="space-y-2 text-sm text-stone-600">
+                  {section.items.map((item) => (
+                    <li key={item}>• {item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      <section aria-labelledby="videos-title">
+        <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h2 id="videos-title" className="text-xl font-bold">
+              Videos
+            </h2>
+            <p className="muted text-sm">
+              {filtered.length} of {playlist.videos.length} shown
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            <Filter size={15} />
+            <span>Filter</span>
+            <select
+              className="field min-h-0 w-auto py-2"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as FilterValue)}
+            >
+              <option value="all">All</option>
+              <option value="recommended">Recommended</option>
+              <option value="low">Low priority</option>
+              <option value="unclear">Unclear</option>
+              <option value="needs-transcript">Needs transcript</option>
+              <option value="summarized">Summarized</option>
+            </select>
+          </label>
+        </div>
+        <div className="surface divide-y divide-stone-200">
+          {filtered.length ? (
+            filtered.map((video, index) => (
+              <div key={video.id} className="flex items-center hover:bg-[#FAFAF9]">
+                <Link
+                  href={`/playlists/${playlist.id}/videos/${video.id}`}
+                  className="grid min-w-0 flex-1 gap-4 p-4 sm:grid-cols-[44px_128px_1fr_auto] sm:items-center"
+                >
+                  <span className="hidden text-center text-sm font-bold text-stone-400 sm:block">
+                    {index + 1}
+                  </span>
+                  <VideoThumbnail
+                    thumbnail={video.thumbnail}
+                    title={video.title}
+                    className="w-32 max-w-full"
+                  />
+                  <div className="min-w-0">
+                    <h3 className="font-bold">{video.title}</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:flex-col sm:items-end">
+                    <PriorityBadge priority={video.priority} />
+                    <TranscriptBadge status={video.transcriptStatus} />
+                  </div>
+                </Link>
+                <button
+                  type="button"
+                  className="button button-danger mr-4 shrink-0 px-3"
+                  onClick={() => deleteVideo(video)}
+                  aria-label={`Remove ${video.title} from playlist`}
+                  title="Remove from this playlist"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="p-10 text-center">
+              <p className="font-bold">No videos match this filter</p>
+              <button
+                className="mt-2 text-sm font-semibold text-[#EA580C]"
+                onClick={() => setFilter("all")}
+              >
+                Show all videos
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+      <PlaylistChat playlist={playlist} />
+    </div>
+  );
 }
 
 function PlaylistChat({ playlist }: { playlist: Playlist }) {
-  const { update } = usePlaylists(); const [question, setQuestion] = useState(""); const [busy, setBusy] = useState(false);
-  async function ask() { if (!question.trim()) return; setBusy(true); await new Promise((r) => setTimeout(r, 500)); const sources = playlist.videos.filter((v) => v.summary).slice(0,2); const answer = sources.length ? `Based on the available demo summaries, the strongest shared conclusion is that production workflows need explicit boundaries, evidence, and evaluation. The materials do not provide enough verified data for claims beyond this.` : "There is not enough processed material to answer this question."; update(playlist.id, (p) => ({ ...p, questions: [...p.questions, { id: crypto.randomUUID(), question: question.trim(), answer, sources: sources.map((v) => ({ videoId: v.id, title: v.title })), createdAt: new Date().toISOString() }] })); setQuestion(""); setBusy(false); }
-  return <section id="ask" className="surface mt-8 p-5 sm:p-6" aria-labelledby="ask-title"><p className="eyebrow mb-2">Grounded Q&amp;A</p><h2 id="ask-title" className="text-xl font-bold">Ask this playlist</h2><p className="muted mt-1 text-sm">Answers use only available summaries and fixture transcripts.</p><div className="mt-5 space-y-4" aria-live="polite">{playlist.questions.map((item) => <article key={item.id} className="rounded-lg border border-stone-200 p-4"><p className="font-bold">{item.question}</p><p className="mt-2 text-sm leading-6 text-stone-700">{item.answer}</p>{item.sources.length > 0 && <p className="muted mt-3 text-xs">Sources: {item.sources.map((s) => s.title).join(", ")}</p>}</article>)}</div><div className="mt-5 flex flex-col gap-2 sm:flex-row"><label htmlFor="question" className="sr-only">Question</label><input id="question" className="field flex-1" value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void ask(); }} placeholder="What do these sources agree on?"/><button className="button button-primary" onClick={ask} disabled={busy || !question.trim()}>{busy ? "Answering…" : "Ask question"}</button></div></section>;
+  const { update } = usePlaylists();
+  const [question, setQuestion] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function ask() {
+    if (!question.trim()) return;
+    setBusy(true);
+    await new Promise((r) => setTimeout(r, 500));
+    const sources = playlist.videos.filter((v) => v.summary).slice(0, 2);
+    const answer = sources.length
+      ? `Based on the available demo summaries, the strongest shared conclusion is that production workflows need explicit boundaries, evidence, and evaluation. The materials do not provide enough verified data for claims beyond this.`
+      : "There is not enough processed material to answer this question.";
+    update(playlist.id, (p) => ({
+      ...p,
+      questions: [
+        ...p.questions,
+        {
+          id: crypto.randomUUID(),
+          question: question.trim(),
+          answer,
+          sources: sources.map((v) => ({ videoId: v.id, title: v.title })),
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }));
+    setQuestion("");
+    setBusy(false);
+  }
+  return (
+    <section id="ask" className="surface mt-8 p-5 sm:p-6" aria-labelledby="ask-title">
+      <p className="eyebrow mb-2">Grounded Q&amp;A</p>
+      <h2 id="ask-title" className="text-xl font-bold">
+        Ask this playlist
+      </h2>
+      <p className="muted mt-1 text-sm">
+        Answers use only available summaries and fixture transcripts.
+      </p>
+      <div className="mt-5 space-y-4" aria-live="polite">
+        {playlist.questions.map((item) => (
+          <article key={item.id} className="rounded-lg border border-stone-200 p-4">
+            <p className="font-bold">{item.question}</p>
+            <p className="mt-2 text-sm leading-6 text-stone-700">{item.answer}</p>
+            {item.sources.length > 0 && (
+              <p className="muted mt-3 text-xs">
+                Sources: {item.sources.map((s) => s.title).join(", ")}
+              </p>
+            )}
+          </article>
+        ))}
+      </div>
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <label htmlFor="question" className="sr-only">
+          Question
+        </label>
+        <input
+          id="question"
+          className="field flex-1"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void ask();
+          }}
+          placeholder="What do these sources agree on?"
+        />
+        <button className="button button-primary" onClick={ask} disabled={busy || !question.trim()}>
+          {busy ? "Answering…" : "Ask question"}
+        </button>
+      </div>
+    </section>
+  );
 }

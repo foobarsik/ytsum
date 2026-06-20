@@ -8,10 +8,21 @@ export function loadPlaylists(): Playlist[] {
   if (typeof window === "undefined") return demoPlaylists;
   const value = window.localStorage.getItem(STORAGE_KEY);
   if (!value) return structuredClone(demoPlaylists);
-  try { return JSON.parse(value) as Playlist[]; } catch { return structuredClone(demoPlaylists); }
+  try {
+    return JSON.parse(value) as Playlist[];
+  } catch {
+    return structuredClone(demoPlaylists);
+  }
 }
-export function savePlaylists(playlists: Playlist[]): void { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(playlists)); }
-export function updateVideo(playlist: Playlist, videoId: string, update: Partial<Video>): Playlist { return { ...playlist, videos: playlist.videos.map((v) => v.id === videoId ? { ...v, ...update } : v) }; }
+export function savePlaylists(playlists: Playlist[]): void {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(playlists));
+}
+export function updateVideo(playlist: Playlist, videoId: string, update: Partial<Video>): Playlist {
+  return {
+    ...playlist,
+    videos: playlist.videos.map((v) => (v.id === videoId ? { ...v, ...update } : v)),
+  };
+}
 export function removeVideoFromPlaylist(playlist: Playlist, videoId: string): Playlist {
   return {
     ...playlist,

@@ -2,7 +2,12 @@ export const agentModes = ["inbox", "learning", "research"] as const;
 export type AgentMode = (typeof agentModes)[number];
 export type SummaryDepth = "brief" | "normal" | "deep";
 export type Confidence = "low" | "medium" | "high";
-export type TranscriptStatus = "available" | "unavailable" | "processing" | "failed" | "manually_added";
+export type TranscriptStatus =
+  | "available"
+  | "unavailable"
+  | "processing"
+  | "failed"
+  | "manually_added";
 export type Priority = "recommended" | "low" | "unclear";
 
 export interface Recommendation {
@@ -72,9 +77,30 @@ export interface Playlist {
 
 export type WatchlistSignalSeverity = "low" | "medium" | "high";
 export type WatchlistClaimKind = "factual" | "prediction" | "opinion";
-export type WatchlistSignalType = "workflow_shift" | "role_shift" | "tooling_opportunity" | "market_shift" | "user_behavior_shift" | "project_update" | "historical_context" | "generic_hype" | "author_metadata" | "recommendation";
-export type WatchlistTermType = "acronym" | "product" | "protocol" | "api" | "company" | "library" | "file_or_domain" | "unknown";
-export type WatchlistTermVerificationStatus = "needs_verification" | "source_backed" | "corrected_asr_term";
+export type WatchlistSignalType =
+  | "workflow_shift"
+  | "role_shift"
+  | "tooling_opportunity"
+  | "market_shift"
+  | "user_behavior_shift"
+  | "project_update"
+  | "historical_context"
+  | "generic_hype"
+  | "author_metadata"
+  | "recommendation";
+export type WatchlistTermType =
+  | "acronym"
+  | "product"
+  | "protocol"
+  | "api"
+  | "company"
+  | "library"
+  | "file_or_domain"
+  | "unknown";
+export type WatchlistTermVerificationStatus =
+  | "needs_verification"
+  | "source_backed"
+  | "corrected_asr_term";
 
 export interface WatchlistTermReview {
   rawTerm: string;
@@ -183,10 +209,26 @@ export interface WeeklyDigest {
   videoCount: number;
   processedCount: number;
   signals: Array<WatchlistSignal & { channelTitle: string; videoTitle: string; youtubeId: string }>;
-  productOpportunities: Array<{ opportunity: string; signal: string; channelTitle: string; videoTitle: string; youtubeId: string }>;
-  newClaims: Array<WatchlistClaim & { channelTitle: string; videoTitle: string; youtubeId: string }>;
-  positionChanges: Array<WatchlistPositionChange & { channelTitle: string; videoTitle: string; youtubeId: string }>;
-  marketingSignals: Array<WatchlistRiskSignal & { channelTitle: string; videoTitle: string; youtubeId: string }>;
-  reasoningRisks: Array<WatchlistRiskSignal & { channelTitle: string; videoTitle: string; youtubeId: string }>;
-  earlySignals: Array<WatchlistEarlySignal & { channelTitle: string; videoTitle: string; youtubeId: string }>;
+  productOpportunities: Array<{
+    opportunity: string;
+    signal: string;
+    channelTitle: string;
+    videoTitle: string;
+    youtubeId: string;
+  }>;
+  newClaims: Array<
+    WatchlistClaim & { channelTitle: string; videoTitle: string; youtubeId: string }
+  >;
+  positionChanges: Array<
+    WatchlistPositionChange & { channelTitle: string; videoTitle: string; youtubeId: string }
+  >;
+  marketingSignals: Array<
+    WatchlistRiskSignal & { channelTitle: string; videoTitle: string; youtubeId: string }
+  >;
+  reasoningRisks: Array<
+    WatchlistRiskSignal & { channelTitle: string; videoTitle: string; youtubeId: string }
+  >;
+  earlySignals: Array<
+    WatchlistEarlySignal & { channelTitle: string; videoTitle: string; youtubeId: string }
+  >;
 }
