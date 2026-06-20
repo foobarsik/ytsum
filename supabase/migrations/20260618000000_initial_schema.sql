@@ -17,6 +17,11 @@ create table public.playlist_questions (id uuid primary key default gen_random_u
 create table public.playlist_answers (id uuid primary key default gen_random_uuid(), question_id uuid not null references public.playlist_questions(id) on delete cascade, user_id uuid not null references public.users(id) on delete cascade, answer text not null, source_video_ids uuid[] not null default '{}', created_at timestamptz not null default now());
 create table public.user_preferences (user_id uuid primary key references public.users(id) on delete cascade, preferences jsonb not null default '{}', updated_at timestamptz not null default now());
 
+-- Auth users may already exist when this schema is first deployed.
+insert into public.users (id)
+select id from auth.users
+on conflict (id) do nothing;
+
 create index playlists_user_created_idx on public.playlists(user_id, created_at desc);
 create index playlist_videos_video_idx on public.playlist_videos(video_id);
 create index transcripts_user_video_idx on public.transcripts(user_id, video_id);

@@ -76,8 +76,25 @@ create policy watchlist_videos_own on public.watchlist_videos
   ));
 
 create policy watchlist_insights_own on public.watchlist_insights
-  for all using ((select auth.uid()) = user_id)
-  with check ((select auth.uid()) = user_id);
+  for all
+  using (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1
+      from public.watchlist_videos video
+      join public.watchlist_channels channel on channel.id = video.channel_id
+      where video.id = watchlist_video_id and channel.user_id = (select auth.uid())
+    )
+  )
+  with check (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1
+      from public.watchlist_videos video
+      join public.watchlist_channels channel on channel.id = video.channel_id
+      where video.id = watchlist_video_id and channel.user_id = (select auth.uid())
+    )
+  );
 
 create policy weekly_digests_own on public.weekly_digests
   for all using ((select auth.uid()) = user_id)

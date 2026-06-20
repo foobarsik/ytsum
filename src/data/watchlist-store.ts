@@ -11,8 +11,8 @@ export function loadWatchlist(): WatchlistChannel[] {
   try { return JSON.parse(value) as WatchlistChannel[]; } catch { return []; }
 }
 
-export function saveWatchlist(channels: WatchlistChannel[]): void {
-  window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(channels));
+export function clearLocalWatchlist(): void {
+  window.localStorage.removeItem(WATCHLIST_STORAGE_KEY);
 }
 
 export function mergeWatchlistChannel(current: WatchlistChannel | undefined, incoming: WatchlistChannel): WatchlistChannel {

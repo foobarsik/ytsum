@@ -50,7 +50,7 @@ export default function WatchlistPage() {
       });
       const result = await response.json() as { transcriptStatus?: WatchlistVideo["transcriptStatus"]; insight?: WatchlistInsight; error?: { message?: string } };
       if (!response.ok) throw new Error(result.error?.message ?? `Could not analyze ${video.title}.`);
-      update(channel.id, (current) => ({
+      channel = await update(channel.id, (current) => ({
         ...current,
         videos: current.videos.map((item) => item.youtubeId === video.youtubeId
           ? { ...item, transcriptStatus: result.transcriptStatus ?? "failed", ...(result.insight ? { insight: result.insight } : {}) }
@@ -81,8 +81,8 @@ export default function WatchlistPage() {
       videos: newVideos,
     };
     const merged = mergeWatchlistChannel(channel, incoming);
-    upsert(merged);
-    if (newVideos.length) await analyzeVideos(merged, newVideos);
+    const persisted = await upsert(merged);
+    if (newVideos.length) await analyzeVideos(persisted, newVideos);
     return newVideos.length;
   }, [analyzeVideos, upsert]);
 
@@ -123,9 +123,9 @@ export default function WatchlistPage() {
         lastCheckedAt: new Date().toISOString(),
         videos: result.videos ?? [],
       };
-      upsert(channel);
+      const persisted = await upsert(channel);
       setChannelInput(""); setTopic("");
-      await analyzeVideos(channel, channel.videos);
+      await analyzeVideos(persisted, persisted.videos);
       setNotice(`${channel.title} added. The latest videos were checked.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not add this channel.");
@@ -177,7 +177,7 @@ export default function WatchlistPage() {
 
     <div className="space-y-5">
       {!ready ? <div className="surface h-48 skeleton"/> : !channels.length ? <section className="surface py-14 text-center"><Eye className="mx-auto mb-4 text-stone-400" size={30}/><h2 className="text-lg font-bold">Your watchlist is empty</h2><p className="muted mt-2">Start with a channel you review every week.</p></section> : channels.map((channel) => <section key={channel.id} className="surface overflow-hidden">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-200 p-5 sm:p-6"><div className="flex min-w-0 gap-4">{channel.thumbnail && <Image src={channel.thumbnail} alt="" width={56} height={56} className="size-14 rounded-full object-cover"/>}<div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-bold">{channel.title}</h2>{channel.topic && <span className="badge badge-gray">{channel.topic}</span>}</div><p className="muted mt-1 text-sm">Last checked {formatDate(channel.lastCheckedAt)} · {channel.videos.length} tracked videos</p></div></div><div className="flex gap-2"><button className="button button-secondary" onClick={() => void syncChannel(channel).then((count) => { setNotice(count ? `${count} new videos found.` : "No new videos found."); setBusy(null); }).catch((error: unknown) => { setNotice(error instanceof Error ? error.message : "Channel check failed."); setBusy(null); })} disabled={Boolean(busy)}>{busy === `sync:${channel.id}` ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}Check now</button><button className="button button-danger" aria-label={`Remove ${channel.title}`} onClick={() => remove(channel.id)}><Trash2 size={16}/></button></div></div>
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-200 p-5 sm:p-6"><div className="flex min-w-0 gap-4">{channel.thumbnail && <Image src={channel.thumbnail} alt="" width={56} height={56} className="size-14 rounded-full object-cover"/>}<div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-bold">{channel.title}</h2>{channel.topic && <span className="badge badge-gray">{channel.topic}</span>}</div><p className="muted mt-1 text-sm">Last checked {formatDate(channel.lastCheckedAt)} · {channel.videos.length} tracked videos</p></div></div><div className="flex gap-2"><button className="button button-secondary" onClick={() => void syncChannel(channel).then((count) => { setNotice(count ? `${count} new videos found.` : "No new videos found."); setBusy(null); }).catch((error: unknown) => { setNotice(error instanceof Error ? error.message : "Channel check failed."); setBusy(null); })} disabled={Boolean(busy)}>{busy === `sync:${channel.id}` ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}Check now</button><button className="button button-danger" aria-label={`Remove ${channel.title}`} onClick={() => void remove(channel.id).catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Could not delete the channel."))}><Trash2 size={16}/></button></div></div>
         <div className="divide-y divide-stone-200">{channel.videos.slice(0, 10).map((video) => <article key={video.youtubeId} className="p-5 sm:p-6"><div className="flex items-start gap-4">{video.thumbnail && <VideoThumbnail thumbnail={video.thumbnail} title={video.title} className="hidden w-36 shrink-0 self-start sm:block"/>}<div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-3"><div><a href={`https://youtube.com/watch?v=${video.youtubeId}`} target="_blank" rel="noreferrer" className="font-bold hover:text-[var(--accent)]">{video.title} <ArrowUpRight className="inline" size={14}/></a><p className="muted mt-1 text-xs">{formatDate(video.publishedAt)}</p></div><div className="flex flex-wrap items-center gap-2">{video.insight && <span className="badge badge-green">Reviewed</span>}<button className="button button-secondary" onClick={() => retryAnalysis(channel, video)} disabled={Boolean(busy)}>{busy === `analyze:${video.youtubeId}` ? <Loader2 className="animate-spin" size={15}/> : <RefreshCw size={15}/>} {video.insight ? "Retry review" : video.transcriptStatus === "processing" ? "Review" : "Retry review"}</button></div></div>{video.insight && <InsightDetails insight={video.insight}/>}</div></div></article>)}</div>
       </section>)}
     </div>
