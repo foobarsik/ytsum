@@ -20,6 +20,14 @@ describe("transcript provider selection", () => {
     })).toBeInstanceOf(ExternalTranscriptProvider);
   });
 
+  it("uses the direct provider during local development", () => {
+    expect(transcriptProviderFromEnv({
+      NODE_ENV: "development",
+      TRANSCRIPT_SUPABASE_URL: "https://example.supabase.co/functions/v1/youtube-transcript",
+      TRANSCRIPT_FUNCTION_SECRET: "secret",
+    })).toBeInstanceOf(YouTubeTranscriptProvider);
+  });
+
   it("prefers an HTTP proxy over the Supabase relay", () => {
     const provider = transcriptProviderFromEnv({
       TRANSCRIPT_PROXY_URL: "http://user:password@127.0.0.1:8080",

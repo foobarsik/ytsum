@@ -107,7 +107,7 @@ export function transcriptProviderFromEnv(env: Record<string, string | undefined
       console.warn("invalid_transcript_proxy_url");
     }
   }
-  if (env.TRANSCRIPT_SUPABASE_URL && env.TRANSCRIPT_FUNCTION_SECRET) {
+  if (env.NODE_ENV !== "development" && env.TRANSCRIPT_SUPABASE_URL && env.TRANSCRIPT_FUNCTION_SECRET) {
     return new ExternalTranscriptProvider(
       env.TRANSCRIPT_SUPABASE_URL,
       env.TRANSCRIPT_FUNCTION_SECRET,
