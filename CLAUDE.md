@@ -16,7 +16,7 @@ Data flows through three swappable **provider** interfaces defined in [src/provi
 2. **`TranscriptProvider`** — fetches captions. Multiple impls selected by env (see below).
 3. **`AIProvider`** — analyze / summarize / clean-transcript / Q&A. Impl: [openrouter.ts](src/providers/openrouter.ts) (`OpenRouterProvider`, OpenAI-compatible). Model picked per-task by [model-routing.ts](src/providers/model-routing.ts): triage→`AI_MODEL_CHEAP`, default→`AI_MODEL_DEFAULT`, synthesis→`AI_MODEL_DEEP`.
 
-**No real database for app state.** Playlists live in browser `localStorage` (key `playlist-mind-v1`) via [src/data/store.ts](src/data/store.ts); demo fixtures in [src/data/demo.ts](src/data/demo.ts). Supabase is used only for the optional transcript relay (and the migration in `supabase/migrations/`), not for playlist persistence.
+Playlists currently live in browser `localStorage` (key `playlist-mind-v1`) via [src/data/store.ts](src/data/store.ts); demo fixtures live in [src/data/demo.ts](src/data/demo.ts). The authenticated Channel Watchlist persists channels, videos, and AI reviews in Supabase with per-user RLS. Supabase also hosts the optional transcript relay.
 
 ### Layout
 - `src/app/` — routes + API. API routes: `api/ai/{analyze,summarize,clean-transcript}`, `api/playlists/import`, `api/transcripts/[videoId]`, `api/health`. API routes validate input with Zod and map errors via [src/domain/errors.ts](src/domain/errors.ts) (`mapExternalError` → `{code,message,retryable}`).
@@ -44,6 +44,7 @@ All built on the `youtube-transcript-plus` library, which makes **~3 requests pe
 - Providers are constructed from env at the API-route boundary; domain code stays pure and testable.
 - Code style here is **dense** (multi-statement lines, inline objects). Match it.
 - Tests are colocated `*.test.ts` (Vitest). Add one when you touch `domain/` or `providers/`.
+- Follow [AGENTS.md](AGENTS.md) whenever inserting a feature into an existing screen or flow.
 
 ## Commands
 
@@ -60,6 +61,4 @@ Always run `typecheck`, `lint`, and `test` before declaring a change done.
 
 ## Env vars (all optional; absence → demo mode)
 
-See [.env.example](.env.example). Key groups: `YOUTUBE_API_KEY` (metadata); `OPENROUTER_API_KEY` + all three `AI_MODEL_*` (AI); the `TRANSCRIPT_*` set above; `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SECRET_KEY` (relay only). Limits: `MAX_VIDEOS_PER_BATCH` (25), `MAX_AI_INPUT_CHARS` (160k, split across transcripts per request).
-</content>
-</invoke>
+See [.env.example](.env.example). Key groups: `YOUTUBE_API_KEY` (metadata); `OPENROUTER_API_KEY` + all three `AI_MODEL_*` (AI); the `TRANSCRIPT_*` set above; `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Auth and Watchlist persistence); `SUPABASE_SECRET_KEY` (server-only administration). Limits: `MAX_VIDEOS_PER_BATCH` (25), `MAX_AI_INPUT_CHARS` (160k, split across transcripts per request).
