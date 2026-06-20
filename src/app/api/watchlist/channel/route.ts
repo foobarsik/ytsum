@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { mapExternalError } from "@/domain/errors";
 import { YouTubeChannelProvider } from "@/providers/youtube-channel";
+import { getAuthState } from "@/lib/supabase/auth";
 
 const requestSchema = z.object({
   input: z.string().min(2).max(300),
@@ -12,6 +13,19 @@ const requestSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const auth = await getAuthState();
+    if (!auth.configured) {
+      return NextResponse.json(
+        { error: { code: "AUTH_NOT_CONFIGURED", message: "Supabase Auth is not configured." } },
+        { status: 503 },
+      );
+    }
+    if (!auth.claims) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHORIZED", message: "Sign in to use the channel watchlist." } },
+        { status: 401 },
+      );
+    }
     if (!process.env.YOUTUBE_API_KEY) {
       return NextResponse.json({ error: { code: "NOT_CONFIGURED", message: "YouTube API is not configured." } }, { status: 503 });
     }

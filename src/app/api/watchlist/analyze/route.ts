@@ -5,6 +5,7 @@ import { watchlistInsightOutputSchema, watchlistSignalCandidateSchema } from "@/
 import { summaryLanguages } from "@/domain/summary-languages";
 import { OpenRouterProvider } from "@/providers/openrouter";
 import { transcriptProviderFromEnv } from "@/providers/transcripts";
+import { getAuthState } from "@/lib/supabase/auth";
 
 const requestSchema = z.object({
   channelTitle: z.string().min(1).max(200),
@@ -34,6 +35,19 @@ function providerErrorDetails(error: unknown): string {
 
 export async function POST(request: Request) {
   try {
+    const auth = await getAuthState();
+    if (!auth.configured) {
+      return NextResponse.json(
+        { error: { code: "AUTH_NOT_CONFIGURED", message: "Supabase Auth is not configured." } },
+        { status: 503 },
+      );
+    }
+    if (!auth.claims) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHORIZED", message: "Sign in to analyze watchlist videos." } },
+        { status: 401 },
+      );
+    }
     if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json({ error: { code: "NOT_CONFIGURED", message: "OpenRouter is not configured." } }, { status: 503 });
     }
