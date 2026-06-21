@@ -1,4 +1,4 @@
-# PlaylistMind
+# Signalcut
 
 Production-oriented MVP PWA for turning YouTube playlists into prioritized knowledge bases. It runs without credentials in an explicit fixture-backed demo mode.
 

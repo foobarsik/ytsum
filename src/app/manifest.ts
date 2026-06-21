@@ -1,8 +1,8 @@
 import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PlaylistMind — AI playlist analysis",
-    short_name: "PlaylistMind",
+    name: "Signalcut — AI playlist analysis",
+    short_name: "Signalcut",
     description: "Turn YouTube playlists into a prioritized, searchable knowledge base.",
     start_url: "/",
     display: "standalone",

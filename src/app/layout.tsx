@@ -1,16 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { BrainCircuit, Eye, Settings } from "lucide-react";
+import Image from "next/image";
+import { Eye, Settings } from "lucide-react";
 import { PlaylistProvider } from "@/components/playlist-provider";
 import { PwaClient } from "@/components/pwa-client";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "PlaylistMind", template: "%s · PlaylistMind" },
+  title: { default: "Signalcut", template: "%s · Signalcut" },
   description: "AI agents for your YouTube playlists",
-  applicationName: "PlaylistMind",
+  applicationName: "Signalcut",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "PlaylistMind", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Signalcut", statusBarStyle: "default" },
   icons: { apple: "/icons/icon-192.png" },
 };
 export const viewport: Viewport = {
@@ -30,11 +31,23 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <PwaClient />
           <header className="border-b border-[var(--border)] bg-white">
             <div className="shell flex h-16 items-center justify-between">
-              <Link href="/" className="flex items-center gap-2 font-bold">
-                <span className="grid size-8 place-items-center rounded-lg bg-[var(--accent)] text-white">
-                  <BrainCircuit size={18} aria-hidden="true" />
-                </span>
-                PlaylistMind
+              <Link href="/" className="flex items-center" aria-label="Signalcut home">
+                <Image
+                  src="/signalcutlogo.png"
+                  alt="Signalcut"
+                  width={130}
+                  height={102}
+                  priority
+                  className="h-7 w-auto sm:hidden"
+                />
+                <Image
+                  src="/signalcut.png"
+                  alt="Signalcut"
+                  width={649}
+                  height={121}
+                  priority
+                  className="hidden h-7 w-auto sm:block"
+                />
               </Link>
               <div className="flex items-center gap-2 sm:gap-3">
                 {!hasYouTubeApi && (
