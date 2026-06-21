@@ -121,7 +121,7 @@ responsive requirements.
 
 Verify in two tiers. The static tier is always required and catches most problems without running
 anything. The rendered tier confirms only what static reasoning cannot prove. Rendering is for
-*confirmation*, not for forming the *suspicion* — most defects are visible in the code first.
+_confirmation_, not for forming the _suspicion_ — most defects are visible in the code first.
 
 ### Tier 1 — static review (code only, always required)
 

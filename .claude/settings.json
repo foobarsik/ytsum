@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/agents-ux-gate.sh\"",
+            "statusMessage": "Checking AGENTS.md UX gate"
+          }
+        ]
+      }
+    ]
+  }
+}
