@@ -22,7 +22,9 @@ Before editing code, state briefly in the work update:
 3. The existing element or section it belongs with.
 4. The screen's current primary action.
 5. Whether the change adds a new always-visible action and why that visibility is justified.
-6. What will happen on narrow mobile widths.
+6. What will happen on narrow mobile widths. Count the always-visible controls in the target
+   region before and after the change; adding one to a row that already holds a text or primary
+   button is a narrow-width overflow risk you must carry into rendered verification.
 
 If any answer is unknown, inspect the running UI and nearby components before implementing.
 Do not silently choose the easiest code location.
@@ -115,19 +117,45 @@ Before creating a component, check for an existing:
 Reuse the nearest valid pattern. “Existing” does not override hierarchy, grouping, frequency, or
 responsive requirements.
 
-## Required verification
+## Required verification: static first, then rendered
 
-For a runnable UI, inspect the result visually after implementation.
+Verify in two tiers. The static tier is always required and catches most problems without running
+anything. The rendered tier confirms only what static reasoning cannot prove. Rendering is for
+*confirmation*, not for forming the *suspicion* — most defects are visible in the code first.
 
-- Check at least one desktop width and one narrow mobile width (375px or narrower).
-- Exercise interactive states: open menus, validation, loading, empty/error states, and keyboard
-  dismissal when relevant.
-- Confirm the primary action is still visually dominant.
-- Confirm no clipping, wrapping, overlap, horizontal scroll, or crowded control row.
-- Confirm icon-only controls have accessible names.
+### Tier 1 — static review (code only, always required)
 
-If visual inspection is unavailable, say so explicitly in the final response and report responsive
-behavior as unverified. Do not claim there is no UX uncertainty.
+Determinable by reading the code; no browser needed. A failure here is enough to require a
+redesign before you ever render:
+
+- Count the always-visible controls in the target region before and after the change. Adding one
+  to a row that already holds a text or primary button is a likely overflow on narrow widths —
+  treat it as suspect and carry it into Tier 2.
+- State coverage: every state the UI can be in (e.g. signed-in, signed-out, not-configured, empty,
+  error) renders a sensible control set. Trace each conditional-visibility branch and confirm which
+  controls appear in each state.
+- Grouping and hierarchy: related information and actions stay together; low-frequency actions are
+  not beside primary navigation; no orphaned controls.
+- Accessibility statics: icon-only controls have accessible names; menus have roles,
+  `aria-expanded`, and keyboard/escape plus outside-click handling.
+- Classification and placement match the hierarchy and grouping rules above.
+
+### Tier 2 — rendered verification (required whenever Tier 1 leaves geometric or data-dependent uncertainty)
+
+Static reasoning gives suspicion, not proof, for anything that depends on rendered geometry or
+runtime data. For a runnable UI, render and confirm:
+
+- The pixel verdict on overflow, wrapping, clipping, overlap, horizontal scroll, or a crowded
+  control row — at least one desktop width and one narrow mobile width (375px or narrower; check
+  320px when feasible).
+- Dropdowns and menus stay within the viewport, have no z-index or overlap defects, and actually
+  open and dismiss (click, keyboard/escape).
+- The primary action remains visually dominant.
+- States that depend on data or session you could not evaluate statically.
+
+Any Tier-1 suspect (such as an added control in a fixed row) MUST be confirmed in Tier 2. If
+rendering is unavailable, say so explicitly in the final response, name the unverified Tier-2
+items, and report responsive behavior as unverified. Do not claim there is no UX uncertainty.
 
 ## If uncertainty remains
 
@@ -148,7 +176,9 @@ A user-visible feature is not done until all are true:
 - classification matches its prominence
 - related information and actions are grouped
 - the existing primary action remains clear
-- desktop and mobile layouts were checked, or the lack of visual verification is disclosed
+- the Tier 1 static review passed, and any geometric or data-dependent uncertainty it raised was
+  confirmed by rendered (desktop and mobile) verification, or the lack of visual verification is
+  disclosed
 - relevant interaction and accessibility states were checked
 - no mandatory stop condition remains
 
@@ -159,5 +189,6 @@ When adding a feature, report:
 - where it was placed and what owns it
 - its classification and why its prominence matches
 - which nearby pattern it follows
-- desktop/mobile and interaction states actually verified
-- any remaining UX uncertainty; “none” is allowed only after visual verification
+- what the Tier 1 static review covered, and which desktop/mobile and interaction states were
+  actually rendered to confirm it
+- any remaining UX uncertainty; “none” is allowed only after the suspect items were rendered
